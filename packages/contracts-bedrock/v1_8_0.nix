@@ -57,7 +57,6 @@ pkgs.stdenv.mkDerivation rec {
       [
         solc_0_8_15
         solc_0_8_19
-        # solc_0_8_24
         solc_0_8_25
       ]
     )}

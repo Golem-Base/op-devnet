@@ -11,8 +11,9 @@
         op-proposer = callPackage ./op-proposer { };
         op-batcher = callPackage ./op-batcher { };
         op-geth = callPackage ./op-geth { };
-        contracts-bedrock = callPackage ./contracts-bedrock { };
-        createL1Genesis = callPackage ./createL1Genesis { };
+        contracts-bedrock_v1_8_0 = callPackage ./contracts-bedrock/v1_8_0.nix { };
+        contracts-bedrock_v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix { };
+        # contracts-bedrock = callPackage ./contracts-bedrock { };
       };
     };
 }
