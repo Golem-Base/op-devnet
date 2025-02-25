@@ -43,22 +43,8 @@
             overlays = [
               inputs.foundry.overlay
               inputs.solc.overlay
-
-              # (final: prev: {
-              #   inherit (final.callPackage ./buildSolidityPackage.nix { }) buildRemoteFoundryPackage;
-              # })
             ];
           };
-
-          # packages.optimism-contracts-v1_6_0 = pkgs.buildRemoteFoundryPackage rec {
-          #   pname = "contracts-bedrock";
-          #   version = "1.6.0";
-          #   owner = "ethereum-optimism";
-          #   repo = "optimism";
-          #   rev = "op-contracts/v${version}";
-          #   hash = "sha256-VhdFZrzXTza28r9cA0DzOH57kPPLjzKdOzcZZJSdEnc=";
-          #   foundryTomlDir = "./packages/contracts-bedrock";
-          # };
         };
     };
 }
