@@ -49,14 +49,14 @@ blockhash=$(echo "$block" | awk '/hash/ { print $2 }')
 
 cat << EOL > tmp_config.json
 {
-  admin_address = "$GS_ADMIN_ADDRESS",
-  admin_private_key = "$GS_ADMIN_PRIVATE_KEY",
-  batcher_address = "$GS_BATCHER_ADDRESS",
-  batcher_private_key = "$GS_BATCHER_PRIVATE_KEY",
-  proposer_address = "$GS_PROPOSER_ADDRESS",
-  proposer_private_key = "$GS_PROPOSER_PRIVATE_KEY",
-  sequencer_address = "$GS_SEQUENCER_ADDRESS",
-  sequencer_private_key = "$GS_SEQUENCER_PRIVATE_KEY",
+  "admin_address" = "$GS_ADMIN_ADDRESS",
+  "admin_private_key" = "$GS_ADMIN_PRIVATE_KEY",
+  "batcher_address" = "$GS_BATCHER_ADDRESS",
+  "batcher_private_key" = "$GS_BATCHER_PRIVATE_KEY",
+  "proposer_address" = "$GS_PROPOSER_ADDRESS",
+  "proposer_private_key" = "$GS_PROPOSER_PRIVATE_KEY",
+  "sequencer_address" = "$GS_SEQUENCER_ADDRESS",
+  "sequencer_private_key" = "$GS_SEQUENCER_PRIVATE_KEY",
   
   "l1StartingBlockTag": "$blockhash",
 
