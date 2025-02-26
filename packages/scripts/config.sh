@@ -1,16 +1,64 @@
 #!/usr/bin/env bash
 
+# set -euo pipefail
+
 # This script is used to generate the getting-started.json configuration file
 # used in the Getting Started quickstart guide on the docs site. Avoids the
 # need to have the getting-started.json committed to the repo since it's an
 # invalid JSON file when not filled in, which is annoying.
 
-reqenv() {
-    if [ -z "${!1}" ]; then
-        echo "Error: environment variable '$1' is undefined"
-        exit 1
-    fi
+RPC_URL=""
+
+usage() {
+  cat <<EOF
+Usage: ''${0##*/} [options]
+
+Options:
+  --rpc-url URL             Specify the RPC URL
+  -h, --help                Show this help message and exit
+
+EOF
 }
+
+OPTIONS=:h
+LONGOPTS=rpc-url:,help
+
+TEMP=$(getopt -o "$OPTIONS" --long "$LONGOPTS" -n "${0##*/}" -- "$@") || {
+  usage
+  exit 1
+}
+
+eval set -- "$TEMP"
+
+while true; do
+  case "$1" in
+    -r|--rpc-url)
+      RPC_URL="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      # End of all options
+      shift
+      break
+      ;;
+    *)
+      # Unexpected options (shouldn’t happen if getopt is used correctly)
+      echo "Error: Unknown option '$1'" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$RPC_URL" ]]; then
+  echo "Error: --rpc-url is required." >&2
+  usage
+  exit 1
+fi
 
 append_with_default() {
     json_key="$1"
@@ -36,12 +84,10 @@ GS_PROPOSER_PRIVATE_KEY=$(jq -r .[2].private_key <<< $WALLETS)
 GS_SEQUENCER_ADDRESS=$(jq -r .[3].address <<< $WALLETS)
 GS_SEQUENCER_PRIVATE_KEY=$(jq -r .[3].private_key <<< $WALLETS)
 
-reqenv "L1_RPC_URL"
-
-l1_chain_id=$(cast chain-id --rpc-url "$L1_RPC_URL")
+l1_chain_id=$(cast chain-id --rpc-url "$RPC_URL")
 
 # Get the latest block timestamp and hash
-block=$(cast block latest --rpc-url "$L1_RPC_URL")
+block=$(cast block latest --rpc-url "$RPC_URL")
 timestamp=$(echo "$block" | awk '/timestamp/ { print $2 }')
 blockhash=$(echo "$block" | awk '/hash/ { print $2 }')
 
@@ -49,14 +95,14 @@ blockhash=$(echo "$block" | awk '/hash/ { print $2 }')
 
 cat << EOL > tmp_config.json
 {
-  "admin_address" = "$GS_ADMIN_ADDRESS",
-  "admin_private_key" = "$GS_ADMIN_PRIVATE_KEY",
-  "batcher_address" = "$GS_BATCHER_ADDRESS",
-  "batcher_private_key" = "$GS_BATCHER_PRIVATE_KEY",
-  "proposer_address" = "$GS_PROPOSER_ADDRESS",
-  "proposer_private_key" = "$GS_PROPOSER_PRIVATE_KEY",
-  "sequencer_address" = "$GS_SEQUENCER_ADDRESS",
-  "sequencer_private_key" = "$GS_SEQUENCER_PRIVATE_KEY",
+  "admin_address": "$GS_ADMIN_ADDRESS",
+  "admin_private_key": "$GS_ADMIN_PRIVATE_KEY",
+  "batcher_address": "$GS_BATCHER_ADDRESS",
+  "batcher_private_key": "$GS_BATCHER_PRIVATE_KEY",
+  "proposer_address": "$GS_PROPOSER_ADDRESS",
+  "proposer_private_key": "$GS_PROPOSER_PRIVATE_KEY",
+  "sequencer_address": "$GS_SEQUENCER_ADDRESS",
+  "sequencer_private_key": "$GS_SEQUENCER_PRIVATE_KEY",
   
   "l1StartingBlockTag": "$blockhash",
 
@@ -138,8 +184,8 @@ append_with_default "l2GenesisCanyonTimeOffset" "CANYON_TIME_OFFSET" "0x0"
 cat << EOL >> tmp_config.json
   "systemConfigStartBlock": 0,
 
-  "requiredProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "recommendedProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "requiredProtocolVersion": "0x0000000000000000000000000000000000000003000000000000000000000000",
+  "recommendedProtocolVersion": "0x0000000000000000000000000000000000000003000000000000000000000000",
 
   "faultGameAbsolutePrestate": "0x03c7ae758795765c6664a5d39bf63841c71ff191e9189522bad8ebff5d4eca98",
   "faultGameMaxDepth": 44,

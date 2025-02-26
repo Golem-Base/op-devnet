@@ -26,14 +26,9 @@
 
       systems = [ "x86_64-linux" ];
 
-      flake =
-        let
-          lib = inputs.nixpkgs.lib;
-
-        in
-        {
-          inherit lib;
-        };
+      flake = {
+        inherit (inputs.nixpkgs) lib;
+      };
 
       perSystem =
         { pkgs, system, ... }:
