@@ -84,7 +84,6 @@ _:
           '';
         in
         {
-
           deploy-optimism = pkgs.writeShellScriptBin "deploy-optimism" ''
             RPC_URL=""
             PRIVATE_KEY=""

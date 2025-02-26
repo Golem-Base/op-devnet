@@ -11,7 +11,7 @@ RPC_URL=""
 
 usage() {
   cat <<EOF
-Usage: ''${0##*/} [options]
+Usage: op-config [options]
 
 Options:
   --rpc-url URL             Specify the RPC URL
