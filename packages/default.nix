@@ -30,8 +30,6 @@ _: {
         contracts-bedrock-v1_8_0 = callPackage ./contracts-bedrock/v1_8_0.nix { };
         contracts-bedrock-v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix { };
 
-        # l1-devnet = import ./l1-devnet { inherit pkgs; };
-
         op-config = import ./op-config { inherit pkgs; };
       };
     };
