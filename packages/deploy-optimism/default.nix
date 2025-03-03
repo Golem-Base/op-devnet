@@ -130,7 +130,7 @@ _:
               echo $IMPL_SALT > $OUT_DIR/salt
 
               echo "Deploying Optimism L1 contracts"                
-              ${pkgs.foundry}/bin/forge script scripts/Deploy.s.sol:Deploy --broadcast --non-interactive --private-key $PRIVATE_KEY --rpc-url $L1_RPC_URL -vvvvv
+              ${pkgs.foundry}/bin/forge script scripts/Deploy.s.sol:Deploy --broadcast --non-interactive --private-key $PRIVATE_KEY --rpc-url $RPC_URL -vvvvv
               if [[ $? -ne 0 ]]; then
                 echo "Deploy failed, exiting..." >&2
                 exit 1
