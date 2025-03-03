@@ -45,7 +45,7 @@ _:
                   RPC_URL="$2"
                   shift 2
                   ;;
-                -k|--private-key)
+                --private-key)
                   PRIVATE_KEY="$2"
                   shift 2
                   ;;
@@ -120,7 +120,7 @@ _:
               
               ${self'.packages.op-config}/bin/op-config --rpc-url $RPC_URL > $DIR/config.json
               L1_CHAIN_ID=$(jq -r .l1ChainID $DIR/config.json)
-
+              echo "CHAIN_ID: $L1_CHAIN_ID"
               mkdir -p $OUT_DIR
 
               cp $DIR/config.json $OUT_DIR/config.json
@@ -131,6 +131,10 @@ _:
 
               echo "Deploying Optimism L1 contracts"                
               ${pkgs.foundry}/bin/forge script scripts/Deploy.s.sol:Deploy --broadcast --non-interactive --private-key $PRIVATE_KEY --rpc-url $L1_RPC_URL -vvvvv
+              if [[ $? -ne 0 ]]; then
+                echo "Deploy failed, exiting..." >&2
+                exit 1
+              fi
 
               cp $DIR/deployments/$L1_CHAIN_ID/.deploy $OUT_DIR/l1_addresses.json
 

@@ -10,6 +10,7 @@
       url = "github:hellwolf/solc.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    process-compose.url = "github:Platonic-Systems/process-compose-flake";
   };
 
   outputs =
@@ -31,7 +32,12 @@
       };
 
       perSystem =
-        { pkgs, system, ... }:
+        {
+          self',
+          pkgs,
+          system,
+          ...
+        }:
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;

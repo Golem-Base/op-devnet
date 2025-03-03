@@ -6,3 +6,4 @@ tmp/
 *.direnv/
 result
 .optimism_deployment*/
+.envrc.local
