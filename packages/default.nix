@@ -20,6 +20,7 @@ _: {
         blst = callPackage ./prysm/blst.nix { };
         prysm = callPackage ./prysm { inherit bls blst; };
         kurtosis = callPackage ./kurtosis { };
+        dora = callPackage ./dora { };
         eth2-testnet-genesis = callPackage ./eth2-testnet-genesis { inherit bls; };
         op-node = callPackage ./op-node { };
         op-proposer = callPackage ./op-proposer { };
