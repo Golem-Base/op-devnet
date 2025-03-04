@@ -35,7 +35,7 @@ pkgs.writeTextFile {
     FULU_FORK_EPOCH: 0  # temporary stub
 
     # Time parameters
-    SECONDS_PER_SLOT: 2
+    SECONDS_PER_SLOT: 12
     SLOTS_PER_EPOCH: 32
 
     # Deposit contract

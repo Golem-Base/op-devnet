@@ -59,7 +59,7 @@
               command = ''
                 ${prysm_ctl} testnet generate-genesis \
                   --fork deneb \
-                  --num-validators 32 \
+                  --num-validators 192 \
                   --genesis-time-delay 0 \
                   --chain-config-file ${config} \
                   --geth-genesis-json-in ${genesis} \

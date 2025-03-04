@@ -1,5 +1,7 @@
+
+
 logging:
-  #outputLevel: "debug"
+  #outputLevel: "info"
   #outputStderr: false
 
   #filePath: "explorer.log"
@@ -7,57 +9,59 @@ logging:
 
 # Chain network configuration
 chain:
-  #name: "mainnet"
-  #genesisTimestamp: 1690484700
-  #genesisValidatorsRoot: "0xbf3c3d4683a5a4d286cd2a5ef7a5c1702f649eee82cdc7e87e05030102d12ccf"
-  configPath: "config.yaml"
-  #genesisTimestamp: 1688126460
-  #configPath: "config-devnet7.yaml"
-  displayName: "Ephemery Iteration 86"
+  #displayName: "Ephemery Iteration xy"
 
 # HTTP Server configuration
 server:
   host: "localhost" # Address to listen on
   port: "8082" # Port to listen on
 
-
 frontend:
   enabled: true # Enable or disable to web frontend
   debug: false
-  minimize: false
-  # siteName: "Dora the Explorer" # Name of the site, displayed in the title tag
-  # siteSubtitle: "Ephemery"
-  # siteDomain: "dora.ephemery.dev"
-  # ethExplorerLink: "https://explorer.ephemery.dev/"
-  # validatorNamesYaml: "validator_names.yaml"
-  #validatorNamesInventory: "https://config.4844-devnet-7.ethpandaops.io/api/v1/nodes/validator-ranges"
-  showSensitivePeerInfos: true
-  showPeerDASInfos: true
-  showSubmitDeposit: true
-  showSubmitElRequests: true
+  minimize: false # minimize html templates
 
+  # Name of the site, displayed in the title tag
+  siteName: "Dora the Explorer"
+  siteSubtitle: ""
+  
+  # link to EL Explorer
+  ethExplorerLink: ""
+
+  # file or inventory url to load validator names from
+  validatorNamesYaml: ""
+  validatorNamesInventory: ""
+
+  # frontend features
+  showSensitivePeerInfos: false
+  showPeerDASInfos: false
+  showSubmitDeposit: false
+  showSubmitElRequests: false
   
 beaconapi:
   # beacon node rpc endpoints
   endpoints:
-    - name: "beacon"
-      url: "http://localhost:4000"
-      priority: 1
-  
+    - name: "local"
+      url: "http://127.0.0.1:3500"
+
+  # local cache for page models
   localCacheSize: 100 # 100MB
+
+  # remote cache for page models
   redisCacheAddr: ""
   redisCachePrefix: ""
 
 executionapi:
   # execution node rpc endpoints
   endpoints:
-    - name: "geth"
-      url: "http://localhost:8545"
+    - name: "local"
+      url: "http://127.0.0.1:8545"
   
   logBatchSize: 1000
   depositDeployBlock: 0 # el block number from where to crawl the deposit contract (should be <=, but close to the deposit contract deployment block)
   electraDeployBlock: 0 # el block number from where to crawl the electra system contracts (should be <=, but close to electra fork activation block)
 
+# indexer keeps track of the latest epochs in memory.
 indexer:
   # max number of epochs to keep in memory
   inMemoryEpochs: 3
@@ -80,33 +84,25 @@ indexer:
   # maximum number of parallel beacon state requests (might cause high memory usage)
   maxParallelValidatorSetRequests: 1
 
-# mevIndexer:
-#   # list of mev relays to crawl mev blocks from
-#   relays:
-#     - index: 0  # identifier for this relay in db (0-63)
-#       name: Flashbots
-#       url: https://boost-relay.flashbots.net/
-#   refreshInterval: 10m
-
 # database configuration
 database:
   engine: "sqlite" # sqlite / pgsql
 
-  # sqlite settings (only used if engine is set to sqlite)
+  # sqlite settings (only used if engine is sqlite)
   sqlite:
-    file: "./tmp-database.sqlite"
-    #file: ":memory:"
+    file: "./explorer-db.sqlite"
 
-  # pgsql settings (only used if engine is set to pgsql)
+  # pgsql settings (only used if engine is pgsql)
   # pgsql:
-  #   host: "10.16.97.2"
+  #   host: "127.0.0.1"
   #   port: 5432
-  #   user: "pk910"
-  #   password: "SBekcBFpRW9rZrVL" # internal dev DB, no worries about password leaking ;)
-  #   name: "pk910"
-  # pgsqlWriter:
-  #   host: "10.16.97.2"
+  #   user: ""
+  #   password: ""
+  #   name: ""
+  # pgsqlWriter: # optional separate writer connection (used for replication setups)
+  #   host: ""
   #   port: 5432
-  #   user: "pk910"
-  #   password: "SBekcBFpRW9rZrVL" # internal dev DB, no worries about password leaking ;)
-  #   name: "pk910"
+  #   user: ""
+  #   password: ""
+  #   name: ""
+
