@@ -11,7 +11,6 @@
       ...
     }:
     let
-
       configs = import ./configs { inherit pkgs; };
       scripts = import ./scripts { inherit pkgs; };
 
@@ -24,6 +23,7 @@
       jq = "${pkgs.jq}/bin/jq";
 
       check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
+      seed-l1 = "${scripts.seed-l1}/bin/seed-l1";
 
       CHAIN_ID = "2345";
       GETH_HTTP_PORT = "8545";
@@ -32,6 +32,10 @@
       BEACON_HTTP_PORT = "4000";
       BEACON_RPC_PORT = "4001";
       DORA_HTTP_PORT = "8082";
+      VALIDATOR_HTTP_PORT = "7000";
+
+      SEEDER_ADDRESS = "0x03587Cce05D8CB6372029498810c7DAA5e7D3D15";
+      SEEDER_PRIVATE_KEY = "0x23aa374b34c33e93ab20bc2fe5bc0721f9914ac91c8209af50ec6bd99a6c6b0d";
 
       NUM_VALIDATORS = "64";
       GENESIS_TIME_DELAY = "0";
@@ -45,7 +49,9 @@
       genesis = configs.mkGenesis {
         chainId = CHAIN_ID;
         address = "0x35Ec8a72D8e218C252EaE18044b0cBb97c1e57bF";
-        balance = "0x43c33c1937564800000"; # 2 ETH
+        balance = "0x8ac7230489e80000"; # 10 ETH
+        seeder_address = SEEDER_ADDRESS;
+        seeder_balance = "0x8ac7230489e80000"; # 10 ETH
       };
       chain-config = configs.mkChainConfig { };
     in
@@ -165,7 +171,7 @@
                   --accept-terms-of-use \
                   --interop-num-validators ${NUM_VALIDATORS} \
                   --interop-start-index 0 \
-                  --rpc-port=7000 \
+                  --rpc-port=${VALIDATOR_HTTP_PORT} \
                   --chain-config-file=${chain-config} \
                   --force-clear-db
               '';
@@ -176,6 +182,12 @@
                 ${check-l1-ready} 20 "http://localhost:${GETH_HTTP_PORT}"
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            };
+            seed-l1 = {
+              command = ''
+                ${seed-l1} ${SEEDER_PRIVATE_KEY} "http://localhost:${GETH_HTTP_PORT}"
+              '';
+              depends_on."l1-init-check".condition = "process_completed_successfully";
             };
             dora = {
               command = ''
