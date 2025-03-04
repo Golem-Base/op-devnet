@@ -14,23 +14,12 @@
 
       configs = import ./configs { inherit pkgs; };
 
-      genesis = ./genesis.json;
-      config = ./interop.yaml;
-      # mnemonics = ./mnemonics.yaml;
-      # dora-config = ./dora-config.yaml;
-
       openssl = "${pkgs.openssl}/bin/openssl";
-
       geth = "${pkgs.go-ethereum}/bin/geth";
-      # lighthouse = "${pkgs.lighthouse}/bin/lighthouse";
-
       prysm_beacon = "${self'.packages.prysm}/bin/beacon-chain";
       prysm_validator = "${self'.packages.prysm}/bin/validator";
       prysm_ctl = "${self'.packages.prysm}/bin/prysmctl";
-
       dora = "${self'.packages.dora}/bin/dora-explorer";
-
-      # eth2-testnet-genesis = "${self'.packages.eth2-testnet-genesis}/bin/eth2-testnet-genesis";
       jq = "${pkgs.jq}/bin/jq";
 
       CHAIN_ID = "2345";
@@ -39,14 +28,23 @@
       GETH_METRICS_PORT = "8300";
       BEACON_HTTP_PORT = "4000";
       BEACON_RPC_PORT = "4001";
+      DORA_HTTP_PORT = "8082";
 
       NUM_VALIDATORS = "64";
-      GENESIS_TIME_DELAY = "5";
+      GENESIS_TIME_DELAY = "0";
 
       dora-config = configs.mkDoraConfig {
+        port = DORA_HTTP_PORT;
         consensus-url = "http://localhost:${BEACON_HTTP_PORT}";
         execution-url = "http://localhost:${GETH_HTTP_PORT}";
       };
+
+      genesis = configs.mkGenesis {
+        chainId = CHAIN_ID;
+        address = "0x35Ec8a72D8e218C252EaE18044b0cBb97c1e57bF";
+        balance = "0x43c33c1937564800000"; # 2 ETH
+      };
+      chain-config = configs.mkChainConfig { };
     in
     {
       process-compose."devnet" = {
@@ -73,7 +71,6 @@
 
           cp ${dora-config} "$DORA_CONFIG_PATH"
 
-
           export JWT
           export GETH_PASSWORD
           export EXECUTION_DIR
@@ -81,6 +78,7 @@
           export DORA_DIR
           export DORA_CONFIG_PATH
         '';
+
         settings = {
           processes = {
             l1-genesis-init = {
@@ -89,7 +87,7 @@
                   --fork deneb \
                   --num-validators ${NUM_VALIDATORS} \
                   --genesis-time-delay ${GENESIS_TIME_DELAY} \
-                  --chain-config-file ${config} \
+                  --chain-config-file ${chain-config} \
                   --geth-genesis-json-in ${genesis} \
                   --geth-genesis-json-out "$EXECUTION_DIR/genesis.out.json" \
                   --output-ssz "$CONSENSUS_DIR/genesis.ssz"
@@ -102,10 +100,9 @@
                   }
                 }' "$EXECUTION_DIR/genesis.out.json" > "$EXECUTION_DIR/genesis.edited.json"
                   
-                rm -rf $EXECUTION_DIR/genesis.out.json
-
                 ${geth} init --datadir "$EXECUTION_DIR" $EXECUTION_DIR/genesis.edited.json
 
+                echo "$PWD"
               '';
             };
 
@@ -141,7 +138,7 @@
                   --min-sync-peers=0 \
                   --genesis-state="$CONSENSUS_DIR/genesis.ssz" \
                   --interop-eth1data-votes \
-                  --chain-config-file=${config} \
+                  --chain-config-file=${chain-config} \
                   --minimal-config=true \
                   --contract-deployment-block=0 \
                   --chain-id=${CHAIN_ID} \
@@ -168,7 +165,7 @@
                   --interop-num-validators ${NUM_VALIDATORS} \
                   --interop-start-index 0 \
                   --rpc-port=7000 \
-                  --chain-config-file=${config} \
+                  --chain-config-file=${chain-config} \
                   --force-clear-db
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
@@ -176,6 +173,7 @@
             dora = {
               command = ''
                 sleep 10
+                cd "$DORA_DIR"
                 ${dora} -config "$DORA_CONFIG_PATH"
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";

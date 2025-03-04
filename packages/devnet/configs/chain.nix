@@ -1,9 +1,9 @@
 { pkgs }:
 pkgs.writeTextFile {
-  name = "genesis.json";
+  name = "chain-config.yaml";
   text = ''
-    CONFIG_NAME: interop
-    PRESET_BASE: interop
+    CONFIG_NAME: testnet
+    PRESET_BASE: testnet
 
     # Genesis
     GENESIS_FORK_VERSION: 0x20000089
@@ -20,6 +20,7 @@ pkgs.writeTextFile {
     # Capella
     CAPELLA_FORK_EPOCH: 0
     CAPELLA_FORK_VERSION: 0x20000092
+
     MAX_WITHDRAWALS_PER_PAYLOAD: 16
 
     # Deneb
@@ -28,11 +29,11 @@ pkgs.writeTextFile {
 
     # Electra
     ELECTRA_FORK_VERSION: 0x20000094
-    ELECTRA_FORK_EPOCH: 18446744073709551615  # temporary stub
+    # ELECTRA_FORK_EPOCH: 0
 
-    # Fulu
+    # FULU
     FULU_FORK_VERSION: 0x20000095
-    FULU_FORK_EPOCH: 0  # temporary stub
+    # FULU_FORK_EPOCH: 0
 
     # Time parameters
     SECONDS_PER_SLOT: 12
