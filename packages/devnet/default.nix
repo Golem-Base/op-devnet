@@ -13,6 +13,7 @@
     let
 
       configs = import ./configs { inherit pkgs; };
+      scripts = import ./scripts { inherit pkgs; };
 
       openssl = "${pkgs.openssl}/bin/openssl";
       geth = "${pkgs.go-ethereum}/bin/geth";
@@ -21,6 +22,8 @@
       prysm_ctl = "${self'.packages.prysm}/bin/prysmctl";
       dora = "${self'.packages.dora}/bin/dora-explorer";
       jq = "${pkgs.jq}/bin/jq";
+
+      check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
 
       CHAIN_ID = "2345";
       GETH_HTTP_PORT = "8545";
@@ -130,7 +133,6 @@
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
             };
-
             l1-beacon = {
               command = ''
                 ${prysm_beacon} \
@@ -155,7 +157,6 @@
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
             };
-
             l1-validator = {
               command = ''
                 ${prysm_validator} \
@@ -170,13 +171,18 @@
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
             };
+            l1-init-check = {
+              command = ''
+                ${check-l1-ready} 20 "http://localhost:${GETH_HTTP_PORT}"
+              '';
+              depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            };
             dora = {
               command = ''
-                sleep 10
                 cd "$DORA_DIR"
                 ${dora} -config "$DORA_CONFIG_PATH"
               '';
-              depends_on."l1-genesis-init".condition = "process_completed_successfully";
+              depends_on."l1-init-check".condition = "process_completed_successfully";
             };
           };
         };
