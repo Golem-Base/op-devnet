@@ -11,23 +11,42 @@
       ...
     }:
     let
+
+      configs = import ./configs { inherit pkgs; };
+
       genesis = ./genesis.json;
       config = ./interop.yaml;
-      mnemonics = ./mnemonics.yaml;
-      dora-config = ./dora-config.yaml;
+      # mnemonics = ./mnemonics.yaml;
+      # dora-config = ./dora-config.yaml;
 
       openssl = "${pkgs.openssl}/bin/openssl";
 
       geth = "${pkgs.go-ethereum}/bin/geth";
-      lighthouse = "${pkgs.lighthouse}/bin/lighthouse";
+      # lighthouse = "${pkgs.lighthouse}/bin/lighthouse";
 
       prysm_beacon = "${self'.packages.prysm}/bin/beacon-chain";
       prysm_validator = "${self'.packages.prysm}/bin/validator";
       prysm_ctl = "${self'.packages.prysm}/bin/prysmctl";
 
-      eth2-testnet-genesis = "${self'.packages.eth2-testnet-genesis}/bin/eth2-testnet-genesis";
+      dora = "${self'.packages.dora}/bin/dora-explorer";
+
+      # eth2-testnet-genesis = "${self'.packages.eth2-testnet-genesis}/bin/eth2-testnet-genesis";
       jq = "${pkgs.jq}/bin/jq";
 
+      CHAIN_ID = "2345";
+      GETH_HTTP_PORT = "8545";
+      GETH_AUTH_PORT = "8551";
+      GETH_METRICS_PORT = "8300";
+      BEACON_HTTP_PORT = "4000";
+      BEACON_RPC_PORT = "4001";
+
+      NUM_VALIDATORS = "64";
+      GENESIS_TIME_DELAY = "5";
+
+      dora-config = configs.mkDoraConfig {
+        consensus-url = "http://localhost:${BEACON_HTTP_PORT}";
+        execution-url = "http://localhost:${GETH_HTTP_PORT}";
+      };
     in
     {
       process-compose."devnet" = {
@@ -37,30 +56,39 @@
 
           EXECUTION_DIR="$PWD/execution"
           CONSENSUS_DIR="$PWD/consensus"
+          DORA_DIR="$PWD/dora"
+          DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
+
           JWT=$PWD/jwt.txt
           GETH_PASSWORD=$PWD/password.txt
 
           touch "$GETH_PASSWORD"
 
           ${openssl} rand -hex 32 > "$JWT"
+
           mkdir -p "$EXECUTION_DIR"
           mkdir -p "$CONSENSUS_DIR/beacon"
           mkdir -p "$CONSENSUS_DIR/validator"
+          mkdir -p "$DORA_DIR"
+
+          cp ${dora-config} "$DORA_CONFIG_PATH"
+
 
           export JWT
           export GETH_PASSWORD
           export EXECUTION_DIR
           export CONSENSUS_DIR
+          export DORA_DIR
+          export DORA_CONFIG_PATH
         '';
         settings = {
           processes = {
-
             l1-genesis-init = {
               command = ''
                 ${prysm_ctl} testnet generate-genesis \
                   --fork deneb \
-                  --num-validators 192 \
-                  --genesis-time-delay 0 \
+                  --num-validators ${NUM_VALIDATORS} \
+                  --genesis-time-delay ${GENESIS_TIME_DELAY} \
                   --chain-config-file ${config} \
                   --geth-genesis-json-in ${genesis} \
                   --geth-genesis-json-out "$EXECUTION_DIR/genesis.out.json" \
@@ -84,16 +112,16 @@
             l1-el = {
               command = ''
                 ${geth} \
-                  --networkid 2345 \
+                  --networkid ${CHAIN_ID}\
                   --http \
                   --http.api=admin,eth,net,web3 \
                   --http.addr=127.0.0.1 \
                   --http.corsdomain="*" \
-                  --http.port=8545 \
-                  --metrics.port=8300 \
+                  --http.port=${GETH_HTTP_PORT} \
+                  --metrics.port=${GETH_METRICS_PORT} \
                   --authrpc.vhosts="*" \
                   --authrpc.addr=127.0.0.1 \
-                  --authrpc.port=8551 \
+                  --authrpc.port=${GETH_AUTH_PORT} \
                   --authrpc.jwtsecret=$JWT \
                   --datadir "$EXECUTION_DIR" \
                   --syncmode 'full' \
@@ -116,9 +144,10 @@
                   --chain-config-file=${config} \
                   --minimal-config=true \
                   --contract-deployment-block=0 \
-                  --chain-id=2345 \
+                  --chain-id=${CHAIN_ID} \
                   --rpc-host=127.0.0.1 \
-                  --rpc-port=4000 \
+                  --rpc-port=${BEACON_RPC_PORT} \
+                  --http-port=${BEACON_HTTP_PORT} \
                   --execution-endpoint=$EXECUTION_DIR/geth.ipc \
                   --accept-terms-of-use \
                   --jwt-secret=$JWT \
@@ -133,10 +162,10 @@
             l1-validator = {
               command = ''
                 ${prysm_validator} \
-                  --beacon-rpc-provider="127.0.0.1:4000" \
+                  --beacon-rpc-provider="127.0.0.1:${BEACON_RPC_PORT}" \
                   --datadir=$CONSENSUS_DIR/validator \
                   --accept-terms-of-use \
-                  --interop-num-validators 64 \
+                  --interop-num-validators ${NUM_VALIDATORS} \
                   --interop-start-index 0 \
                   --rpc-port=7000 \
                   --chain-config-file=${config} \
@@ -144,16 +173,13 @@
               '';
               depends_on."l1-genesis-init".condition = "process_completed_successfully";
             };
-
-            # l1-cl-beacon = {
-            #   command = ''
-            #     ${lighthouse} bn \
-            #                   --datadir "$BEACON_DIR" \
-            #                   --execution-endpoint "http://127.0.0.1:8551" \
-            #                   --execution-jwt $JWT \
-            #                   --dummy-eth1
-            #   '';
-            # };
+            dora = {
+              command = ''
+                sleep 10
+                ${dora} -config "$DORA_CONFIG_PATH"
+              '';
+              depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            };
           };
         };
       };
