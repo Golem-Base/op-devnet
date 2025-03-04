@@ -14,6 +14,7 @@
       genesis = ./genesis.json;
       config = ./interop.yaml;
       mnemonics = ./mnemonics.yaml;
+      dora-config = ./dora-config.yaml;
 
       openssl = "${pkgs.openssl}/bin/openssl";
 
@@ -56,16 +57,10 @@
 
             l1-genesis-init = {
               command = ''
-                # ${eth2-testnet-genesis} deneb \
-                #   --config ${config} \
-                #   --eth1-config ${genesis} \
-                #   --mnemonics ${mnemonics} \
-                #   --state-output "$CONSENSUS_DIR/genesis.ssz"
-
                 ${prysm_ctl} testnet generate-genesis \
                   --fork deneb \
                   --num-validators 32 \
-                  --genesis-time-delay 30 \
+                  --genesis-time-delay 0 \
                   --chain-config-file ${config} \
                   --geth-genesis-json-in ${genesis} \
                   --geth-genesis-json-out "$EXECUTION_DIR/genesis.out.json" \
@@ -91,7 +86,7 @@
                 ${geth} \
                   --networkid 2345 \
                   --http \
-                  --http.api=eth,net,web3 \
+                  --http.api=admin,eth,net,web3 \
                   --http.addr=127.0.0.1 \
                   --http.corsdomain="*" \
                   --http.port=8545 \
