@@ -6,6 +6,8 @@ pkgs.writeShellScriptBin "seed-l1" ''
   PRIVATE_KEY=$1
   RPC_URL=$2
 
+  echo "Seeding the network with an initial transaction..."
+
   ${cast} send 0x0000000000000000000000000000000000000001 \
     --value $(cast 2w 1) \
     --rpc-url $RPC_URL \
@@ -18,4 +20,5 @@ pkgs.writeShellScriptBin "seed-l1" ''
       exit 1
   fi
 
+  echo "Seeding transaction executed successfully..."
 ''
