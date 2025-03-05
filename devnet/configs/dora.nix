@@ -71,7 +71,7 @@ pkgs.writeTextFile {
       depositDeployBlock: 0
 
       # el block number from where to crawl the electra system contracts (should be <=, but close to electra fork activation block)
-      electraDeployBlock: 0 
+      electraDeployBlock: 0
 
     # indexer keeps track of the latest epochs in memory.
     indexer:

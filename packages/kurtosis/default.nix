@@ -3,7 +3,6 @@
   stdenv,
   fetchurl,
 }:
-
 stdenv.mkDerivation rec {
   pname = "kurtosis-cli";
   version = "1.5.0";

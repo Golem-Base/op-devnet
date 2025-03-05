@@ -1,4 +1,7 @@
-{ stdenv, fetchFromGitHub }:
+{
+  stdenv,
+  fetchFromGitHub,
+}:
 stdenv.mkDerivation rec {
   pname = "blst";
   version = "0.3.11";

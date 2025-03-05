@@ -3,7 +3,6 @@
   buildGoModule,
   fetchFromGitHub,
 }:
-
 buildGoModule rec {
   pname = "op-geth";
   version = "1.101311.0";

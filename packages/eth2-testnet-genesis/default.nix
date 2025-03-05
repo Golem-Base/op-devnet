@@ -16,9 +16,9 @@ buildGoModule rec {
 
   vendorHash = "sha256-YGKfJOpzFw9X1z2Q4LyB+0ahEdfv1cJ9fDCzbDFH9Gs=";
 
-  buildInputs = [ bls ];
+  buildInputs = [bls];
 
-  subPackages = [ "." ];
+  subPackages = ["."];
 
   ldflags = [
     "-s"
@@ -29,6 +29,6 @@ buildGoModule rec {
     description = "Create a genesis state for an Eth2 testnet";
     homepage = "https://github.com/protolambda/eth2-testnet-genesis";
     mainProgram = "eth2-testnet-genesis";
-    platforms = [ "x86_64-linux" ];
+    platforms = ["x86_64-linux"];
   };
 }
