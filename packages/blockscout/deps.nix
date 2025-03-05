@@ -1,16 +1,13 @@
-{
-  lib,
-  beamPackages,
-  overrides ? (x: y: {}),
-}: let
+{ lib, beamPackages, overrides ? (x: y: {}) }:
+
+let
   buildRebar3 = lib.makeOverridable beamPackages.buildRebar3;
   buildMix = lib.makeOverridable beamPackages.buildMix;
   buildErlangMk = lib.makeOverridable beamPackages.buildErlangMk;
 
   self = packages // (overrides self packages);
 
-  packages = with beamPackages;
-  with self; {
+  packages = with beamPackages; with self; {
     absinthe = buildMix rec {
       name = "absinthe";
       version = "1.7.8";
@@ -21,7 +18,7 @@
         sha256 = "c4085df201892a498384f997649aedb37a4ce8a726c170d5b5617ed3bf45d40b";
       };
 
-      beamDeps = [dataloader decimal nimble_parsec telemetry];
+      beamDeps = [ dataloader decimal nimble_parsec telemetry ];
     };
 
     absinthe_phoenix = buildMix rec {
@@ -34,19 +31,7 @@
         sha256 = "caffaea03c17ea7419fe07e4bc04c2399c47f0d8736900623dbf4749a826fd2c";
       };
 
-      beamDeps = [absinthe absinthe_plug decimal phoenix phoenix_html phoenix_pubsub];
-    };
-
-    absinthe_plug = buildMix rec {
-      name = "absinthe_plug";
-      version = "1.5.8";
-      src = fetchHex {
-        pkg = "absinthe_plug";
-        version = "${version}";
-        sha256 = "bbb04176647b735828861e7b2705465e53e2cf54ccf5a73ddd1ebd855f996e5a";
-      };
-
-      beamDeps = [absinthe plug];
+      beamDeps = [ absinthe absinthe_plug decimal phoenix phoenix_html phoenix_pubsub ];
     };
 
     absinthe_relay = buildMix rec {
@@ -59,7 +44,7 @@
         sha256 = "0587ee913afa31512e1457a5064ee88427f8fe7bcfbeeecd41c71d9cff0b62b6";
       };
 
-      beamDeps = [absinthe ecto];
+      beamDeps = [ absinthe ecto ];
     };
 
     accept = buildRebar3 rec {
@@ -85,7 +70,7 @@
         sha256 = "895b2993ed195b2b0fa79c0d5a1d36aa529e817b6df257e4a10745459048d505";
       };
 
-      beamDeps = [hackney jason mime plug];
+      beamDeps = [ hackney jason mime plug ];
     };
 
     bcrypt_elixir = buildMix rec {
@@ -98,7 +83,7 @@
         sha256 = "563e92a6c77d667b19c5f4ba17ab6d440a085696bdf4c68b9b0f5b30bc5422b8";
       };
 
-      beamDeps = [comeonin elixir_make];
+      beamDeps = [ comeonin elixir_make ];
     };
 
     benchee = buildMix rec {
@@ -111,7 +96,7 @@
         sha256 = "76224c58ea1d0391c8309a8ecbfe27d71062878f59bd41a390266bf4ac1cc56d";
       };
 
-      beamDeps = [deep_merge statistex];
+      beamDeps = [ deep_merge statistex ];
     };
 
     benchee_csv = buildMix rec {
@@ -124,7 +109,7 @@
         sha256 = "cdefb804c021dcf7a99199492026584be9b5a21d6644ac0d01c81c5d97c520d5";
       };
 
-      beamDeps = [benchee csv];
+      beamDeps = [ benchee csv ];
     };
 
     blake2 = buildMix rec {
@@ -176,7 +161,7 @@
         sha256 = "bc7e5162b911c29c8ebefee87a2c16fbf13821a58f448a8fd024eb6c17fae15c";
       };
 
-      beamDeps = [inflex phoenix plug poison];
+      beamDeps = [ inflex phoenix plug poison ];
     };
 
     bypass = buildMix rec {
@@ -189,7 +174,7 @@
         sha256 = "d9b5df8fa5b7a6efa08384e9bbecfe4ce61c77d28a4282f79e02f1ef78d96b80";
       };
 
-      beamDeps = [plug plug_cowboy ranch];
+      beamDeps = [ plug plug_cowboy ranch ];
     };
 
     cachex = buildMix rec {
@@ -202,7 +187,7 @@
         sha256 = "d5d632da7f162f8a190f1c39b712c0ebc9cf0007c4e2029d44eddc8041b52d55";
       };
 
-      beamDeps = [eternal ex_hash_ring jumper sleeplocks unsafe];
+      beamDeps = [ eternal ex_hash_ring jumper sleeplocks unsafe ];
     };
 
     castore = buildMix rec {
@@ -241,7 +226,7 @@
         sha256 = "f6e046254e53cd6b41c6bacd70ae728011aa82b2742a80d6e2214855c6e06b22";
       };
 
-      beamDeps = [elixir_make];
+      beamDeps = [ elixir_make ];
     };
 
     certifi = buildRebar3 rec {
@@ -267,7 +252,7 @@
         sha256 = "c506eb1a170ba7cdca59b304ba02a56795ed119856662f6b1a420af80ec42551";
       };
 
-      beamDeps = [castore certifi decimal];
+      beamDeps = [ castore certifi decimal ];
     };
 
     cloak = buildMix rec {
@@ -280,7 +265,7 @@
         sha256 = "92b20527b9aba3d939fab0dd32ce592ff86361547cfdc87d74edce6f980eb3d7";
       };
 
-      beamDeps = [jason];
+      beamDeps = [ jason ];
     };
 
     cloak_ecto = buildMix rec {
@@ -293,7 +278,7 @@
         sha256 = "314beb0c123b8a800418ca1d51065b27ba3b15f085977e65c0f7b2adab2de1cc";
       };
 
-      beamDeps = [cloak ecto];
+      beamDeps = [ cloak ecto ];
     };
 
     combine = buildMix rec {
@@ -345,7 +330,7 @@
         sha256 = "1def4d1bec296564c75b5bbc60a19f2b5649d81bfa345a2febcc6ae380e8ae15";
       };
 
-      beamDeps = [telemetry];
+      beamDeps = [ telemetry ];
     };
 
     connection = buildMix rec {
@@ -371,7 +356,7 @@
         sha256 = "3f2d759e8c272ed3835fab2ef11b46bddab8c1ab9528167bd463b6452edf830d";
       };
 
-      beamDeps = [plug];
+      beamDeps = [ plug ];
     };
 
     cowboy = buildErlangMk rec {
@@ -384,7 +369,7 @@
         sha256 = "e724d3a70995025d654c1992c7b11dbfea95205c047d86ff9bf1cda92ddc5614";
       };
 
-      beamDeps = [cowlib ranch];
+      beamDeps = [ cowlib ranch ];
     };
 
     cowboy_telemetry = buildRebar3 rec {
@@ -397,7 +382,7 @@
         sha256 = "7d98bac1ee4565d31b62d59f8823dfd8356a169e7fcbb83831b8a5397404c9de";
       };
 
-      beamDeps = [cowboy telemetry];
+      beamDeps = [ cowboy telemetry ];
     };
 
     cowlib = buildRebar3 rec {
@@ -423,7 +408,7 @@
         sha256 = "56826b4306843253a66e47ae45e98e7d284ee1f95d53d1612bb483f88a8cf219";
       };
 
-      beamDeps = [bunt file_system jason];
+      beamDeps = [ bunt file_system jason ];
     };
 
     csv = buildMix rec {
@@ -436,7 +421,7 @@
         sha256 = "e821f541487045c7591a1963eeb42afff0dfa99bdcdbeb3410795a2f59c77d34";
       };
 
-      beamDeps = [parallel_stream];
+      beamDeps = [ parallel_stream ];
     };
 
     dataloader = buildMix rec {
@@ -449,7 +434,7 @@
         sha256 = "4c6cabc0b55e96e7de74d14bf37f4a5786f0ab69aa06764a1f39dda40079b098";
       };
 
-      beamDeps = [ecto telemetry];
+      beamDeps = [ ecto telemetry ];
     };
 
     db_connection = buildMix rec {
@@ -462,7 +447,7 @@
         sha256 = "dcf08f31b2701f857dfc787fbad78223d61a32204f217f15e881dd93e4bdd3ff";
       };
 
-      beamDeps = [telemetry];
+      beamDeps = [ telemetry ];
     };
 
     decimal = buildMix rec {
@@ -514,7 +499,7 @@
         sha256 = "bf2cfb75cd5c5006bec30141b131663299c661a864ec7fbbc72dfa557487a986";
       };
 
-      beamDeps = [erlex];
+      beamDeps = [ erlex ];
     };
 
     digital_token = buildMix rec {
@@ -527,7 +512,7 @@
         sha256 = "8ed6f5a8c2fa7b07147b9963db506a1b4c7475d9afca6492136535b064c9e9e6";
       };
 
-      beamDeps = [cldr_utils jason];
+      beamDeps = [ cldr_utils jason ];
     };
 
     earmark_parser = buildMix rec {
@@ -553,7 +538,7 @@
         sha256 = "6eb18e80bef8bb57e17f5a7f068a1719fbda384d40fc37acb8eb8aeca493b6ea";
       };
 
-      beamDeps = [decimal jason telemetry];
+      beamDeps = [ decimal jason telemetry ];
     };
 
     ecto_sql = buildMix rec {
@@ -566,7 +551,7 @@
         sha256 = "aff5b958a899762c5f09028c847569f7dfb9cc9d63bdb8133bff8a5546de6bf5";
       };
 
-      beamDeps = [db_connection ecto postgrex telemetry];
+      beamDeps = [ db_connection ecto postgrex telemetry ];
     };
 
     elixir_make = buildMix rec {
@@ -618,7 +603,7 @@
         sha256 = "b3497d07bcf2c7dae2f9916b22600b18486d4b8b388fe001c074647c67087f55";
       };
 
-      beamDeps = [castore elixir_make nx];
+      beamDeps = [ castore elixir_make nx ];
     };
 
     ex_abi = buildMix rec {
@@ -631,7 +616,7 @@
         sha256 = "db785ad43c24d4d7015d3070611eb3e2bd88fa96b614cab10cb42401c94e1e74";
       };
 
-      beamDeps = [ex_keccak jason];
+      beamDeps = [ ex_keccak jason ];
     };
 
     ex_aws = buildMix rec {
@@ -644,7 +629,7 @@
         sha256 = "8f79777b7932168956c8cc3a6db41f5783aa816eb50de356aed3165a71e5f8c3";
       };
 
-      beamDeps = [hackney jason jsx mime req sweet_xml telemetry];
+      beamDeps = [ hackney jason jsx mime req sweet_xml telemetry ];
     };
 
     ex_aws_s3 = buildMix rec {
@@ -657,7 +642,7 @@
         sha256 = "9874e12847e469ca2f13a5689be04e546c16f63caf6380870b7f25bf7cb98875";
       };
 
-      beamDeps = [ex_aws sweet_xml];
+      beamDeps = [ ex_aws sweet_xml ];
     };
 
     ex_brotli = buildMix rec {
@@ -670,7 +655,7 @@
         sha256 = "8447d98d51f8f312629fd38619d4f564507dcf3a03d175c3f8f4ddf98e46dd92";
       };
 
-      beamDeps = [phoenix rustler_precompiled];
+      beamDeps = [ phoenix rustler_precompiled ];
     };
 
     ex_cldr = buildMix rec {
@@ -683,7 +668,7 @@
         sha256 = "cd9039ca9a7c61b99c053a16bd2201ebd7d1c87b49499a4c6d761ec14bca4442";
       };
 
-      beamDeps = [cldr_utils decimal gettext jason nimble_parsec];
+      beamDeps = [ cldr_utils decimal gettext jason nimble_parsec ];
     };
 
     ex_cldr_currencies = buildMix rec {
@@ -696,7 +681,7 @@
         sha256 = "46a67d1387f14e836b1a24d831fa5f0904663b4f386420736f40a7d534e3cb9e";
       };
 
-      beamDeps = [ex_cldr jason];
+      beamDeps = [ ex_cldr jason ];
     };
 
     ex_cldr_lists = buildMix rec {
@@ -709,7 +694,7 @@
         sha256 = "00161c04510ccb3f18b19a6b8562e50c21f1e9c15b8ff4c934bea5aad0b4ade2";
       };
 
-      beamDeps = [ex_cldr_numbers ex_doc jason];
+      beamDeps = [ ex_cldr_numbers ex_doc jason ];
     };
 
     ex_cldr_numbers = buildMix rec {
@@ -722,7 +707,7 @@
         sha256 = "de1259b535c837ae66801171045878176bdb07243688376fecda71e4b4bb2ba2";
       };
 
-      beamDeps = [decimal digital_token ex_cldr ex_cldr_currencies jason];
+      beamDeps = [ decimal digital_token ex_cldr ex_cldr_currencies jason ];
     };
 
     ex_cldr_units = buildMix rec {
@@ -735,7 +720,7 @@
         sha256 = "457d76c6e3b548bd7aba3c7b5d157213be2842d1162c2283abf81d9e2f1e1fc7";
       };
 
-      beamDeps = [cldr_utils decimal ex_cldr_lists ex_cldr_numbers ex_doc jason];
+      beamDeps = [ cldr_utils decimal ex_cldr_lists ex_cldr_numbers ex_doc jason ];
     };
 
     ex_doc = buildMix rec {
@@ -748,7 +733,7 @@
         sha256 = "4dfa56075ce4887e4e8b1dcc121cd5fcb0f02b00391fd367ff5336d98fa49049";
       };
 
-      beamDeps = [earmark_parser makeup_elixir makeup_erlang];
+      beamDeps = [ earmark_parser makeup_elixir makeup_erlang ];
     };
 
     ex_hash_ring = buildMix rec {
@@ -774,7 +759,7 @@
         sha256 = "37f43be60f8407659d4d0155a7e45e7f406dab1f827051d3d35858a709baf6a6";
       };
 
-      beamDeps = [decimal];
+      beamDeps = [ decimal ];
     };
 
     ex_keccak = buildMix rec {
@@ -787,7 +772,7 @@
         sha256 = "9d1568424eb7b995e480d1b7f0c1e914226ee625496600abb922bba6f5cdc5e4";
       };
 
-      beamDeps = [rustler_precompiled];
+      beamDeps = [ rustler_precompiled ];
     };
 
     ex_machina = buildMix rec {
@@ -800,7 +785,7 @@
         sha256 = "79fe1a9c64c0c1c1fab6c4fa5d871682cb90de5885320c187d117004627a7729";
       };
 
-      beamDeps = [ecto ecto_sql];
+      beamDeps = [ ecto ecto_sql ];
     };
 
     ex_rlp = buildMix rec {
@@ -826,7 +811,7 @@
         sha256 = "465fd788c83c24d2df47f302e8fb1011054c81a905345e377c957b159a783bfc";
       };
 
-      beamDeps = [rustler_precompiled];
+      beamDeps = [ rustler_precompiled ];
     };
 
     ex_utils = buildMix rec {
@@ -865,7 +850,7 @@
         sha256 = "32e95820a97cffea67830e91514a2ad53b888850442d6d395f53a1ac60c82e07";
       };
 
-      beamDeps = [jsx];
+      beamDeps = [ jsx ];
     };
 
     expo = buildMix rec {
@@ -891,7 +876,7 @@
         sha256 = "2bd4125889bd3953d7fbb7b388c34190c31e292f12896da56ecf0743d40439ed";
       };
 
-      beamDeps = [exactor exjsx finch httpoison meck];
+      beamDeps = [ exactor exjsx finch httpoison meck ];
     };
 
     file_info = buildMix rec {
@@ -904,7 +889,7 @@
         sha256 = "50e7ad01c2c8b9339010675fe4dc4a113b8d6ca7eddce24d1d74fd0e762781a5";
       };
 
-      beamDeps = [mimetype_parser];
+      beamDeps = [ mimetype_parser ];
     };
 
     file_system = buildMix rec {
@@ -930,7 +915,7 @@
         sha256 = "69f5045b042e531e53edc2574f15e25e735b522c37e2ddb766e15b979e03aa65";
       };
 
-      beamDeps = [castore mime mint nimble_options nimble_pool telemetry];
+      beamDeps = [ castore mime mint nimble_options nimble_pool telemetry ];
     };
 
     floki = buildMix rec {
@@ -956,7 +941,7 @@
         sha256 = "874adde96368e71870f3510b91e35bc31652291858c86c0e75359cbdd35eb211";
       };
 
-      beamDeps = [gen_stage];
+      beamDeps = [ gen_stage ];
     };
 
     gen_stage = buildMix rec {
@@ -982,7 +967,7 @@
         sha256 = "aa978504bcf76511efdc22d580ba08e2279caab1066b76bb9aa81c4a1e0a32a5";
       };
 
-      beamDeps = [expo];
+      beamDeps = [ expo ];
     };
 
     hackney = buildRebar3 rec {
@@ -995,7 +980,7 @@
         sha256 = "fe9094e5f1a2a2c0a7d10918fee36bfec0ec2a979994cff8cfe8058cd9af38e3";
       };
 
-      beamDeps = [certifi idna metrics mimerl parse_trans ssl_verify_fun unicode_util_compat];
+      beamDeps = [ certifi idna metrics mimerl parse_trans ssl_verify_fun unicode_util_compat ];
     };
 
     hammer = buildMix rec {
@@ -1008,7 +993,7 @@
         sha256 = "b9476d0c13883d2dc0cc72e786bac6ac28911fba7cc2e04b70ce6a6d9c4b2bdc";
       };
 
-      beamDeps = [poolboy];
+      beamDeps = [ poolboy ];
     };
 
     hammer_backend_redis = buildMix rec {
@@ -1021,7 +1006,7 @@
         sha256 = "9965d55705d7ca7412bb0685f5cd44fc47d103bf388abc50438e71974c36c9fa";
       };
 
-      beamDeps = [hammer redix];
+      beamDeps = [ hammer redix ];
     };
 
     hpax = buildMix rec {
@@ -1060,7 +1045,7 @@
         sha256 = "51364e6d2f429d80e14fe4b5f8e39719cacd03eb3f9a9286e61e216feac2d2df";
       };
 
-      beamDeps = [hackney];
+      beamDeps = [ hackney ];
     };
 
     idna = buildRebar3 rec {
@@ -1073,7 +1058,7 @@
         sha256 = "92376eb7894412ed19ac475e4a86f7b413c1b9fbb5bd16dccd57934157944cea";
       };
 
-      beamDeps = [unicode_util_compat];
+      beamDeps = [ unicode_util_compat ];
     };
 
     image = buildMix rec {
@@ -1086,7 +1071,7 @@
         sha256 = "f32bb924c4fd6404108533f7a4de9a3d4c5471038c65e961c1671286eb14ef73";
       };
 
-      beamDeps = [evision jason nx phoenix_html plug req sweet_xml vix];
+      beamDeps = [ evision jason nx phoenix_html plug req sweet_xml vix ];
     };
 
     inflex = buildMix rec {
@@ -1112,7 +1097,7 @@
         sha256 = "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b";
       };
 
-      beamDeps = [decimal];
+      beamDeps = [ decimal ];
     };
 
     joken = buildMix rec {
@@ -1125,7 +1110,7 @@
         sha256 = "5134b5b0a6e37494e46dbf9e4dad53808e5e787904b7c73972651b51cce3d72b";
       };
 
-      beamDeps = [jose];
+      beamDeps = [ jose ];
     };
 
     jose = buildMix rec {
@@ -1203,7 +1188,7 @@
         sha256 = "3f20eea58e406a33d3eb7814c7dff5accb503bab2ee8601e84da02976fa3934c";
       };
 
-      beamDeps = [ecto jason phoenix plug telemetry];
+      beamDeps = [ ecto jason phoenix plug telemetry ];
     };
 
     makeup = buildMix rec {
@@ -1216,7 +1201,7 @@
         sha256 = "d36484867b0bae0fea568d10131197a4c2e47056a6fbe84922bf6ba71c8d17ce";
       };
 
-      beamDeps = [nimble_parsec];
+      beamDeps = [ nimble_parsec ];
     };
 
     makeup_elixir = buildMix rec {
@@ -1229,7 +1214,7 @@
         sha256 = "7284900d412a3e5cfd97fdaed4f5ed389b8f2b4cb49efc0eb3bd10e2febf9507";
       };
 
-      beamDeps = [makeup nimble_parsec];
+      beamDeps = [ makeup nimble_parsec ];
     };
 
     makeup_erlang = buildMix rec {
@@ -1242,7 +1227,7 @@
         sha256 = "af33ff7ef368d5893e4a267933e7744e46ce3cf1f61e2dccf53a111ed3aa3727";
       };
 
-      beamDeps = [makeup];
+      beamDeps = [ makeup ];
     };
 
     math = buildMix rec {
@@ -1346,7 +1331,7 @@
         sha256 = "5ee441dffc1892f1ae59127f74afe8fd82fda6587794278d924e4d90ea3d63f9";
       };
 
-      beamDeps = [castore hpax];
+      beamDeps = [ castore hpax ];
     };
 
     mock = buildMix rec {
@@ -1359,7 +1344,7 @@
         sha256 = "9e1b244c4ca2551bb17bb8415eed89e40ee1308e0fbaed0a4fdfe3ec8a4adbd3";
       };
 
-      beamDeps = [meck];
+      beamDeps = [ meck ];
     };
 
     mox = buildMix rec {
@@ -1385,7 +1370,7 @@
         sha256 = "ca933891b0e7075701a17507c61642bf6e0407bb244040d5d0a58597a06369d2";
       };
 
-      beamDeps = [plug];
+      beamDeps = [ plug ];
     };
 
     nimble_csv = buildMix rec {
@@ -1450,7 +1435,7 @@
         sha256 = "c0733a0a90773a66582b9e92a3f01290987f395c972cb7d685f51dd927cd5169";
       };
 
-      beamDeps = [decimal];
+      beamDeps = [ decimal ];
     };
 
     numbers = buildMix rec {
@@ -1463,7 +1448,7 @@
         sha256 = "eeccf5c61d5f4922198395bf87a465b6f980b8b862dd22d28198c5e6fab38582";
       };
 
-      beamDeps = [coerce decimal];
+      beamDeps = [ coerce decimal ];
     };
 
     nx = buildMix rec {
@@ -1476,7 +1461,7 @@
         sha256 = "914d74741617d8103de8ab1f8c880353e555263e1c397b8a1109f79a3716557f";
       };
 
-      beamDeps = [complex telemetry];
+      beamDeps = [ complex telemetry ];
     };
 
     oauth2 = buildMix rec {
@@ -1489,7 +1474,7 @@
         sha256 = "8ac07f85b3307dd1acfeb0ec852f64161b22f57d0ce0c15e616a1dfc8ebe2b41";
       };
 
-      beamDeps = [tesla];
+      beamDeps = [ tesla ];
     };
 
     optimal = buildMix rec {
@@ -1541,7 +1526,7 @@
         sha256 = "207f1aa5520320cbb7940d7ff2dde2342162cf513875848f88249ea0ba02fef7";
       };
 
-      beamDeps = [jason phoenix_html phoenix_pubsub plug plug_cowboy plug_crypto telemetry];
+      beamDeps = [ jason phoenix_html phoenix_pubsub plug plug_cowboy plug_crypto telemetry ];
     };
 
     phoenix_ecto = buildMix rec {
@@ -1554,7 +1539,7 @@
         sha256 = "909502956916a657a197f94cc1206d9a65247538de8a5e186f7537c895d95764";
       };
 
-      beamDeps = [ecto phoenix_html plug postgrex];
+      beamDeps = [ ecto phoenix_html plug postgrex ];
     };
 
     phoenix_html = buildMix rec {
@@ -1567,7 +1552,7 @@
         sha256 = "0249d3abec3714aff3415e7ee3d9786cb325be3151e6c4b3021502c585bf53fb";
       };
 
-      beamDeps = [plug];
+      beamDeps = [ plug ];
     };
 
     phoenix_live_reload = buildMix rec {
@@ -1580,7 +1565,7 @@
         sha256 = "766796676e5f558dbae5d1bdb066849673e956005e3730dfd5affd7a6da4abac";
       };
 
-      beamDeps = [file_system phoenix];
+      beamDeps = [ file_system phoenix ];
     };
 
     phoenix_live_view = buildMix rec {
@@ -1593,7 +1578,7 @@
         sha256 = "25eaf41028eb351b90d4f69671874643a09944098fefd0d01d442f40a6091b6f";
       };
 
-      beamDeps = [jason phoenix phoenix_html telemetry];
+      beamDeps = [ jason phoenix phoenix_html telemetry ];
     };
 
     phoenix_pubsub = buildMix rec {
@@ -1619,7 +1604,7 @@
         sha256 = "a13ff6b9006b03d7e33874945b2755253841b238c34071ed85b0e86057f8cddc";
       };
 
-      beamDeps = [mime plug_crypto telemetry];
+      beamDeps = [ mime plug_crypto telemetry ];
     };
 
     plug_cowboy = buildMix rec {
@@ -1632,7 +1617,7 @@
         sha256 = "245d8a11ee2306094840c000e8816f0cbed69a23fc0ac2bcf8d7835ae019bb2f";
       };
 
-      beamDeps = [cowboy cowboy_telemetry plug];
+      beamDeps = [ cowboy cowboy_telemetry plug ];
     };
 
     plug_crypto = buildMix rec {
@@ -1684,7 +1669,7 @@
         sha256 = "d36ef8b36f323d29505314f704e21a1a038e2dc387c6409ee0cd24144e187c0f";
       };
 
-      beamDeps = [db_connection decimal jason];
+      beamDeps = [ db_connection decimal jason ];
     };
 
     prometheus = buildMix rec {
@@ -1697,7 +1682,7 @@
         sha256 = "719862351aabf4df7079b05dc085d2bbcbe3ac0ac3009e956671b1d5ab88247d";
       };
 
-      beamDeps = [quantile_estimator];
+      beamDeps = [ quantile_estimator ];
     };
 
     prometheus_ecto = buildMix rec {
@@ -1710,7 +1695,7 @@
         sha256 = "8d66289f77f913b37eda81fd287340c17e61a447549deb28efc254532b2bed82";
       };
 
-      beamDeps = [ecto prometheus_ex];
+      beamDeps = [ ecto prometheus_ex ];
     };
 
     prometheus_phoenix = buildMix rec {
@@ -1723,7 +1708,7 @@
         sha256 = "c4d1404ac4e9d3d963da601db2a7d8ea31194f0017057fabf0cfb9bf5a6c8c75";
       };
 
-      beamDeps = [phoenix prometheus_ex];
+      beamDeps = [ phoenix prometheus_ex ];
     };
 
     prometheus_plugs = buildMix rec {
@@ -1736,7 +1721,7 @@
         sha256 = "0273a6483ccb936d79ca19b0ab629aef0dba958697c94782bb728b920dfc6a79";
       };
 
-      beamDeps = [accept plug prometheus_ex prometheus_process_collector];
+      beamDeps = [ accept plug prometheus_ex prometheus_process_collector ];
     };
 
     qrcode = buildMix rec {
@@ -1775,7 +1760,7 @@
         sha256 = "a737b365253e75dbd24b2d51acc1d851049e87baae08cd0c94e2bc5cd65088d5";
       };
 
-      beamDeps = [ex_utils memento];
+      beamDeps = [ ex_utils memento ];
     };
 
     ranch = buildRebar3 rec {
@@ -1814,7 +1799,7 @@
         sha256 = "78538d184231a5d6912f20567d76a49d1be7d3fca0e1aaaa20f4df8e1142dcb8";
       };
 
-      beamDeps = [castore nimble_options telemetry];
+      beamDeps = [ castore nimble_options telemetry ];
     };
 
     remote_ip = buildMix rec {
@@ -1827,7 +1812,7 @@
         sha256 = "2ff91de19c48149ce19ed230a81d377186e4412552a597d6a5137373e5877cb7";
       };
 
-      beamDeps = [combine plug];
+      beamDeps = [ combine plug ];
     };
 
     req = buildMix rec {
@@ -1840,7 +1825,7 @@
         sha256 = "cfaa8e720945d46654853de39d368f40362c2641c4b2153c886418914b372185";
       };
 
-      beamDeps = [brotli finch jason mime nimble_csv plug];
+      beamDeps = [ brotli finch jason mime nimble_csv plug ];
     };
 
     rustler_precompiled = buildMix rec {
@@ -1853,7 +1838,7 @@
         sha256 = "63d1bd5f8e23096d1ff851839923162096364bac8656a4a3c00d1fff8e83ee0a";
       };
 
-      beamDeps = [castore];
+      beamDeps = [ castore ];
     };
 
     sleeplocks = buildRebar3 rec {
@@ -1879,7 +1864,7 @@
         sha256 = "cd6e9026b85fc35d7529da14f95e85a078d9dd1907a9097b3ba6ac7ebbe34a0d";
       };
 
-      beamDeps = [jason];
+      beamDeps = [ jason ];
     };
 
     spandex = buildMix rec {
@@ -1892,7 +1877,7 @@
         sha256 = "d0a7d5aef4c5af9cf5467f2003e8a5d8d2bdae3823a6cc95d776b9a2251d4d03";
       };
 
-      beamDeps = [decorator optimal plug];
+      beamDeps = [ decorator optimal plug ];
     };
 
     spandex_datadog = buildMix rec {
@@ -1905,7 +1890,7 @@
         sha256 = "360f8e1b4db238c1749c4872b1697b096429927fa42b8858d0bb782067380123";
       };
 
-      beamDeps = [msgpax spandex telemetry];
+      beamDeps = [ msgpax spandex telemetry ];
     };
 
     spandex_ecto = buildMix rec {
@@ -1918,7 +1903,7 @@
         sha256 = "c64784be79d95538013b7c60828830411c5c7aff1f4e8d66dfe564b3c83b500e";
       };
 
-      beamDeps = [spandex];
+      beamDeps = [ spandex ];
     };
 
     spandex_phoenix = buildMix rec {
@@ -1931,7 +1916,7 @@
         sha256 = "265fe05c1736485fbb75d66ef7576682ebf6428c391dd54d22217f612fd4ddad";
       };
 
-      beamDeps = [phoenix plug spandex telemetry];
+      beamDeps = [ phoenix plug spandex telemetry ];
     };
 
     ssl_verify_fun = buildRebar3 rec {
@@ -1996,7 +1981,7 @@
         sha256 = "7b8fc8f6b0640fa0d090af7889d12eb396460e044b6f8688a8e55e30406a2200";
       };
 
-      beamDeps = [castore exjsx finch hackney jason mime mint mox msgpax poison telemetry];
+      beamDeps = [ castore exjsx finch hackney jason mime mint mox msgpax poison telemetry ];
     };
 
     timex = buildMix rec {
@@ -2009,7 +1994,7 @@
         sha256 = "8b9024f7efbabaf9bd7aa04f65cf8dcd7c9818ca5737677c7b76acbc6a94d1aa";
       };
 
-      beamDeps = [combine gettext tzdata];
+      beamDeps = [ combine gettext tzdata ];
     };
 
     typed_ecto_schema = buildMix rec {
@@ -2022,7 +2007,7 @@
         sha256 = "85c6962f79d35bf543dd5659c6adc340fd2480cacc6f25d2cc2933ea6e8fcb3b";
       };
 
-      beamDeps = [ecto];
+      beamDeps = [ ecto ];
     };
 
     tzdata = buildMix rec {
@@ -2035,7 +2020,7 @@
         sha256 = "a69cec8352eafcd2e198dea28a34113b60fdc6cb57eb5ad65c10292a6ba89787";
       };
 
-      beamDeps = [hackney];
+      beamDeps = [ hackney ];
     };
 
     ueberauth = buildMix rec {
@@ -2048,7 +2033,7 @@
         sha256 = "f2d3172e52821375bccb8460e5fa5cb91cfd60b19b636b6e57e9759b6f8c10c1";
       };
 
-      beamDeps = [plug];
+      beamDeps = [ plug ];
     };
 
     ueberauth_auth0 = buildMix rec {
@@ -2061,7 +2046,7 @@
         sha256 = "8d3b30fa27c95c9e82c30c4afb016251405706d2e9627e603c3c9787fd1314fc";
       };
 
-      beamDeps = [oauth2 ueberauth];
+      beamDeps = [ oauth2 ueberauth ];
     };
 
     unicode_util_compat = buildRebar3 rec {
@@ -2113,7 +2098,7 @@
         sha256 = "9acde72b27bdfeadeb51f790f7a6cc0d06cf555718c05cf57e43c5cf93d8471b";
       };
 
-      beamDeps = [castore cc_precompiler elixir_make];
+      beamDeps = [ castore cc_precompiler elixir_make ];
     };
 
     wallaby = buildMix rec {
@@ -2126,7 +2111,7 @@
         sha256 = "62e3ccb89068b231b50ed046219022020516d44f443eebef93a19db4be95b808";
       };
 
-      beamDeps = [ecto_sql httpoison jason phoenix_ecto web_driver_client];
+      beamDeps = [ ecto_sql httpoison jason phoenix_ecto web_driver_client ];
     };
 
     web_driver_client = buildMix rec {
@@ -2139,7 +2124,7 @@
         sha256 = "83cc6092bc3e74926d1c8455f0ce927d5d1d36707b74d9a65e38c084aab0350f";
       };
 
-      beamDeps = [hackney jason tesla];
+      beamDeps = [ hackney jason tesla ];
     };
 
     websockex = buildMix rec {
@@ -2155,5 +2140,5 @@
       beamDeps = [];
     };
   };
-in
-  self
+in self
+
