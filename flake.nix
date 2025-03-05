@@ -11,6 +11,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     process-compose.url = "github:Platonic-Systems/process-compose-flake";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -21,6 +25,7 @@
 
       imports = [
         inputs.devshell.flakeModule
+        inputs.treefmt-nix.flakeModule
         ./shell.nix
         ./packages
         ./devnet
@@ -47,6 +52,29 @@
               inputs.solc.overlay
             ];
           };
+
+          treefmt.config = {
+            flakeFormatter = true;
+            flakeCheck = true;
+            projectRootFile = "flake.nix";
+            programs = {
+                      alejandra.enable = true;
+                      deadnix.enable = true;
+                      mdformat.enable = true;
+                      shellcheck.enable = true;
+                      shfmt.enable = true;
+                      statix.enable = true;
+                      yamlfmt.enable = true;
+                      jsonfmt.enable = true;
+                    };
+                    settings.formatter = {
+                      alejandra.priority = 3;
+                      deadnix.priority = 1;
+                      statix.priority = 2;
+                    };
+                  };
         };
+
+
     };
 }
