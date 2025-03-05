@@ -1,5 +1,5 @@
 _: {
   perSystem = {pkgs, ...}: {
-    packages.blockscout-backend = pkgs.callPackage ./backend.nix {};
+    # packages.blockscout-backend = pkgs.callPackage ./backend.nix {};
   };
 }
