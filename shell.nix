@@ -16,6 +16,12 @@ _: {
         self'.packages.kurtosis
         self'.packages.dora
       ];
+
+      shellHook = ''
+        export PRJ_ROOT="$PWD"
+        mkdir -p "$PRJ_ROOT/.data"
+        export PRJ_DATA="$PRJ_ROOT/.data"
+      '';
     };
   };
 }
