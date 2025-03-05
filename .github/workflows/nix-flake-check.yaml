@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Nix Fmt
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  nix-fmt:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run nix fmt
+        run: nix fmt

@@ -4,12 +4,11 @@
   fetchurl,
   autoPatchelfHook,
 }:
-
 stdenv.mkDerivation rec {
   pname = "dora";
   version = "1.14.0";
 
-  nativeBuildInputs = [ autoPatchelfHook ];
+  nativeBuildInputs = [autoPatchelfHook];
 
   src = fetchurl {
     url = "https://github.com/ethpandaops/dora/releases/download/v${version}/dora_${version}_linux_amd64.tar.gz";

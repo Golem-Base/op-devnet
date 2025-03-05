@@ -5,7 +5,6 @@
   libpcap,
   ...
 }:
-
 buildGoModule rec {
   pname = "op-node";
   version = "1.7.5";
@@ -25,9 +24,9 @@ buildGoModule rec {
 
   doCheck = false;
 
-  subPackages = [ "op-proposer/cmd" ];
+  subPackages = ["op-proposer/cmd"];
 
-  buildInputs = [ libpcap ];
+  buildInputs = [libpcap];
 
   ldflags = [
     "-s"
@@ -37,8 +36,8 @@ buildGoModule rec {
   meta = with lib; {
     description = "Optimism is Ethereum, scaled.";
     homepage = "https://optimism.io/";
-    license = with licenses; [ mit ];
+    license = with licenses; [mit];
     mainProgram = "op-proposer";
-    platforms = [ "x86_64-linux" ];
+    platforms = ["x86_64-linux"];
   };
 }

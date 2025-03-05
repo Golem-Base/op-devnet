@@ -1,5 +1,4 @@
-{ pkgs }:
-
+{pkgs}:
 pkgs.symlinkJoin {
   name = "op-config";
   paths =
@@ -12,6 +11,6 @@ pkgs.symlinkJoin {
       foundry
       jq
     ]);
-  buildInputs = [ pkgs.makeWrapper ];
+  buildInputs = [pkgs.makeWrapper];
   postBuild = "wrapProgram $out/bin/op-config --prefix PATH : $out/bin";
 }

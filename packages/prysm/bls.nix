@@ -19,16 +19,16 @@ stdenv.mkDerivation rec {
     hash = "sha256-VIJi8sjDq40ecPnEWzFPDR2t5rCOUIWxfI4QAemfPPM=";
   };
 
-  nativeBuildInputs = [ cmake ] ++ (lib.optionals (system == "aarch64-linux") [ clang ]);
+  nativeBuildInputs = [cmake] ++ (lib.optionals (system == "aarch64-linux") [clang]);
   cmakeFlags = lib.optionals (system == "aarch64-linux") [
     "-DCMAKE_CXX_COMPILER=clang++"
     "-DCMAKE_CXX_COMPILER_ID=Clang"
   ];
 
-  buildInputs = [ gmp ];
+  buildInputs = [gmp];
 
   # ETH2.0 spec
-  CFLAGS = [ ''-DBLS_ETH'' ];
+  CFLAGS = [''-DBLS_ETH''];
 
   meta = {
     description = "BLS threshold signature";
