@@ -1,9 +1,19 @@
+### nix ###
+repl-result-*
+result*
+
+### devshell ###
+/.data
+
+### optimism ###
+.optimism_deployment*/
+
+### direnv ###
+*.direnv/
+.envrc.local
+
+### misc ###
 .DS_Store
 .idea
 *.log
 tmp/
-
-*.direnv/
-result
-.optimism_deployment*/
-.envrc.local
