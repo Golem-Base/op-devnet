@@ -1,5 +1,5 @@
 _: {
-  imports = [./deploy-optimism];
+  imports = [./deploy-optimism ./blockscout];
   perSystem = {pkgs, ...}: let
     inherit (pkgs) callPackage;
   in {
@@ -9,7 +9,6 @@ _: {
       prysm = callPackage ./prysm {inherit bls blst;};
       kurtosis = callPackage ./kurtosis {};
       dora = callPackage ./dora {};
-      blockscout = callPackage ./blockscout {};
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
 
       # op stack (supports contracts v1_3_0 to v1_8_0)
@@ -29,6 +28,8 @@ _: {
       op-geth-v1_101500_1 = callPackage ./op-geth/op-geth-v1_101500_1.nix {};
       op-node-v1_11_2 = callPackage ./op-node/op-node-v1_11_2.nix {};
       op-proposer-v1_10_0 = callPackage ./op-proposer/op-proposer-v1_10_0.nix {};
+
+      # blockscout = import ./blockscout {inherit pkgs;};
     };
   };
 }

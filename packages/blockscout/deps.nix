@@ -37,6 +37,18 @@
       beamDeps = [absinthe absinthe_plug decimal phoenix phoenix_html phoenix_pubsub];
     };
 
+    absinthe_plug = buildMix rec {
+      name = "absinthe_plug";
+      version = "1.5.8";
+      src = fetchHex {
+        pkg = "absinthe_plug";
+        version = "${version}";
+        sha256 = "bbb04176647b735828861e7b2705465e53e2cf54ccf5a73ddd1ebd855f996e5a";
+      };
+
+      beamDeps = [absinthe plug];
+    };
+
     absinthe_relay = buildMix rec {
       name = "absinthe_relay";
       version = "1.5.2";
