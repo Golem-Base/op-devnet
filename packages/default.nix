@@ -1,9 +1,6 @@
 _: {
 
-  imports = [
-    ./deploy-optimism
-    ./devnet
-  ];
+  imports = [ ./deploy-optimism ];
   perSystem =
     {
       pkgs,
@@ -21,6 +18,7 @@ _: {
         prysm = callPackage ./prysm { inherit bls blst; };
         kurtosis = callPackage ./kurtosis { };
         dora = callPackage ./dora { };
+        blockscout = callPackage ./blockscout { };
         eth2-testnet-genesis = callPackage ./eth2-testnet-genesis { inherit bls; };
         op-node = callPackage ./op-node { };
         op-proposer = callPackage ./op-proposer { };

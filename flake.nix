@@ -23,6 +23,7 @@
         inputs.devshell.flakeModule
         ./shell.nix
         ./packages
+        ./devnet
       ];
 
       systems = [ "x86_64-linux" ];
