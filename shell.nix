@@ -10,6 +10,7 @@ _: {
         sops
         ssh-to-age
         go-ethereum
+        alejandra
         self'.packages.prysm
         self'.packages.eth2-testnet-genesis
         self'.packages.kurtosis
