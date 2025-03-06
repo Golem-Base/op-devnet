@@ -22,7 +22,7 @@ _: {
       contracts-bedrock-v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix {};
 
       op-config = import ./op-config {inherit pkgs;};
-      deploy-optimism = callPackage ./deploy-optimism {};
+      deploy-optimism = callPackage ./deploy-optimism {op-deployer = op-deployer-v0_2_0_rc1;};
 
       # op stack (supports contracts v2.0.0)
       op-batcher-v1_11_4 = callPackage ./op-batcher/op-batcher-v1_11_4.nix {};

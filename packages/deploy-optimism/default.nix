@@ -2,8 +2,9 @@
   pkgs,
   lib,
   ...
-}: let
+} @ args: let
   dasel = lib.getExe pkgs.dasel;
+  op-deployer = lib.getExe args.op-deployer;
 
   usage = ''
     RPC_URL=""
@@ -75,8 +76,8 @@
     EOF
     }
 
-    OPTIONS=::::::::::::::::::::::::h
-    LONGOPTS=private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,batcher:,challenger:,sequencer:,proposer:,l1-contracts-release:,l1-artifacts-locator:,l2-artifacts-locator:,absolute-prestate-hash:,protocol-version:,help
+    OPTIONS=h
+    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,l1-contracts-release:,l1-artifacts-locator:,l2-artifacts-locator:,absolute-prestate-hash:,protocol-version:
 
     TEMP=$(getopt -o "$OPTIONS" --long "$LONGOPTS" -n "''${0##*/}" -- "$@") || {
       usage
@@ -235,6 +236,7 @@
     fi
 
     if [[ -z "$SUPERCHAIN_PROXY_ADMIN_OWNER" ]]; then
+      echo "$SUPERCHAIN_PROXY_ADMIN_OWNER"
       echo "Error: --superchain-proxy-admin-owner is required." >&2
       usage
       exit 1
@@ -356,12 +358,12 @@ in
     echo "absolute-prestate-hash: $ABSOLUTE_PRESTATE_HASH"
     echo "protocol-version: $PROTOCOL_VERSION"
 
-    local INTENT_FILE=$WORKING_DIR/intent.toml
-    local SUPERCHAIN_FILE=$WORKING_DIR/superchain.json
-    local IMPLEMENTATIONS_FILE=$WORKING_DIR/implementations.json
-    local PROXY_FILE=$WORKING_DIR/proxy.json
-    local GENESIS_FILE=$WORKING_DIR/genesis.json
-    local ROLLUP_FILE=$WORKING_DIR/rollup.json
+    INTENT_FILE=$WORK_DIR/intent.toml
+    SUPERCHAIN_FILE=$WORK_DIR/superchain.json
+    IMPLEMENTATIONS_FILE=$WORK_DIR/implementations.json
+    PROXY_FILE=$WORK_DIR/proxy.json
+    GENESIS_FILE=$WORK_DIR/genesis.json
+    ROLLUP_FILE=$WORK_DIR/rollup.json
 
     echo "Initializing OP chain"
     op-deployer init \
@@ -415,16 +417,14 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.proposer" -v "$PROPOSER"
 
     # bootstrap implementations
-    local SuperChainConfixProxy
-    SuperChainConfigProxy = $(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
+    SUPERCHAIN_CONFIG_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
 
-    local ProtocolVersionsProxy
-    ProtocolVersionsProxy = $(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
+    PROTOCOL_VERSIONS_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
 
     echo "Bootstrapping implementations"
-    op-deployer bootstrap implementations \
-        --superchain-config-proxy "$SuperchainConfigProxy" \
-        --protocol-versions-proxy "$ProtocolVersionsProxy" \
+    ${op-deployer} bootstrap implementations \
+        --superchain-config-proxy $SUPERCHAIN_CONFIG_PROXY \
+        --protocol-versions-proxy $PROTOCOL_VERSIONS_PROXY \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
@@ -433,7 +433,7 @@ in
         --outfile $IMPLEMENTATIONS_FILE
 
     echo "Bootstraping proxy"
-    op-deployer bootstrap proxy \
+    ${op-deployer} bootstrap proxy \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
@@ -441,18 +441,18 @@ in
         --outfile $PROXY_FILE
 
     echo "Applying config"
-    op-deployer apply \
+    ${op-deployer} apply \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --workdir $WORK_DIR
 
     echo "Generating op-geth genesis file"
-    op-deployer inspect genesis \
+    ${op-deployer} inspect genesis \
         --workdir $WORK_DIR $L2_CHAIN_ID \
         > $GENESIS_FILE
 
     echo "Generating rollup file"
-    op-deployer inspect rollup \
+    ${op-deployer} inspect rollup \
         --workdir $WORK_DIR $L2_CHAIN_ID \
         > $ROLLUP_FILE
   ''

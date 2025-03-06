@@ -36,8 +36,10 @@
     dora = lib.getExe flakePkgs.dora;
     # blockscout = lib.getExe flakePkgs.blockscout;
 
-    # L1 specific config options
     L1_CHAIN_ID = "2345";
+    L2_CHAIN_ID = "3456";
+
+    # L1 specific config options
     GETH_HTTP_PORT = "8545";
     GETH_AUTH_PORT = "8551";
     GETH_METRICS_PORT = "8300";
@@ -56,6 +58,23 @@
 
     SEEDER_ACCOUNT = lib.elemAt accounts 1;
     DEPLOYER_ACCOUNT = lib.elemAt accounts 2;
+
+    SEQUENCER = lib.elemAt accounts 3;
+    BATCHER = lib.elemAt accounts 4;
+    PROPOSER = lib.elemAt accounts 5;
+    CHALLENGER = lib.elemAt accounts 6;
+
+    SUPERCHAIN_PROXY_ADMIN_OWNER = lib.elemAt accounts 7;
+    PROTOCOL_VERSIONS_OWNER = lib.elemAt accounts 8;
+    GUARDIAN = lib.elemAt accounts 9;
+    BASE_FEE_VAULT_RECIPIENT = lib.elemAt accounts 10;
+    L1_FEE_VAULT_RECIPIENT = lib.elemAt accounts 11;
+    SEQUENCER_FEE_VAULT_RECIPIENT = lib.elemAt accounts 12;
+    L1_PROXY_ADMIN_OWNER = lib.elemAt accounts 13;
+    L2_PROXY_ADMIN_OWNER = lib.elemAt accounts 14;
+    SYSTEM_CONFIG_OWNER = lib.elemAt accounts 15;
+    UNSAFE_BLOCK_SIGNER = lib.elemAt accounts 16;
+    UPGRADE_CONTROLLER = lib.elemAt accounts 17;
 
     NUM_VALIDATORS = "64";
     GENESIS_TIME_DELAY = "0";
@@ -83,11 +102,12 @@
         CONSENSUS_DIR="$PWD/consensus"
         DORA_DIR="$PWD/dora"
         OP_DIR="$PWD/op"
+        OP_DEPLOYER_DIR="$OP_DIR/deployer"
 
         mkdir -p "$EXECUTION_DIR"
         mkdir -p "$CONSENSUS_DIR/{beacon,validator}"
         mkdir -p "$DORA_DIR"
-        mkdir -p "$OP_DIR/{batcher,deployer,geth,node}"
+        mkdir -p "$OP_DEPLOYER_DIR"
 
         JWT=$PWD/jwt.txt
         GETH_PASSWORD=$PWD/password.txt
@@ -99,10 +119,9 @@
         DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
-        L2_NETWORK_ID="393530"
-        export OP_GENSIS_CONFIG="$OP_DIR/deployer/genesis.json"
-        OP_ROLLUP_CONFIG="$OP_DIR/deployer/rollup.json"
-        OP_GETH_DIR="$OP_DIR/geth"
+        export OP_GENSIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
+        export OP_ROLLUP_CONFIG="$OP_DEPLOYER_DIR/rollup.json"
+        export OP_GETH_DIR="$OP_DIR/geth"
 
         export JWT
         export GETH_PASSWORD
@@ -111,10 +130,7 @@
         export DORA_DIR
         export DORA_CONFIG_PATH
         export OP_DIR
-        export L2_NETWORK_ID
-        export OP_GENESIS_CONFIG
-        export OP_ROLLUP_CONFIG
-        export OP_GETH_DIR
+        export OP_DEPLOYER_DIR
       '';
 
       settings = {
@@ -224,9 +240,29 @@
           # L2
           l2-init = {
             command = ''
-              ${deploy-optimism}
+              ${deploy-optimism} \
+                --rpc-url ${GETH_HTTP_PORT} \
+                --private-key ${DEPLOYER_ACCOUNT.private-key} \
+                --l1-chain-id ${L1_CHAIN_ID} \
+                --l2-chain-id ${L2_CHAIN_ID} \
+                --work-dir $OP_DEPLOYER_DIR \
+                --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
+                --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
+                --guardian ${GUARDIAN.address} \
+                --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
+                --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
+                --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
+                --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
+                --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
+                --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
+                --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
+                --upgrade-controller ${UPGRADE_CONTROLLER.address} \
+                --batcher ${BATCHER.address} \
+                --challenger ${CHALLENGER.address} \
+                --sequencer ${SEQUENCER.address} \
+                --proposer ${PROPOSER.address}
             '';
-            depends_on."seed-l1".condition = "process_completed_successfully";
+            # depends_on."seed-l1".condition = "process_completed_successfully";
           };
 
           # l2-op-geth-init = {

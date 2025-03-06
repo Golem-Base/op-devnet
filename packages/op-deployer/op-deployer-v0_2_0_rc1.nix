@@ -17,10 +17,6 @@ buildGoModule rec {
 
   doCheck = false;
 
-  postInstall = ''
-    mv $out/bin/op-deployer $out/bin/op-deployer-dev
-  '';
-
   subPackages = ["op-deployer/cmd/op-deployer"];
 
   meta.mainProgram = "op-deployer";
