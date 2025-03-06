@@ -330,34 +330,6 @@ in
   pkgs.writeShellScriptBin "deploy-optimism" ''
     ${usage}
 
-    echo "rpc-url: $RPC_URL"
-    echo "private-key: $PRIVATE_KEY"
-    echo "work-dir: $WORK_DIR"
-    echo "l1-chain-id: $L1_CHAIN_ID"
-    echo "l2-chain-id: $L2_CHAIN_ID"
-
-    echo "superchain-proxy-admin-owner: $SUPERCHAIN_PROXY_ADMIN_OWNER"
-    echo "protocol-versions-owner: $PROTOCOL_VERSIONS_OWNER"
-    echo "guardian $GUARDIAN"
-    echo "base-fee-vault-recipient: $BASE_FEE_VAULT_RECIPIENT"
-    echo "l1-fee-vault-recipient: $L1_FEE_VAULT_RECIPIENT"
-    echo "sequencer-fee-vault-recipient: $SEQUENCER_FEE_VAULT_RECIPIENT"
-    echo "l1-proxy-admin-owner: $L1_PROXY_ADMIN_OWNER"
-    echo "l2-proxy-admin-owner: $L2_PROXY_ADMIN_OWNER"
-    echo "system-config-owner: $SYSTEM_CONFIG_OWNER"
-    echo "unsafe-block-signer: $UNSAFE_BLOCK_SIGNER"
-    echo "upgrade-controller: $UPGRADE_CONTROLLER"
-    echo "batcher: $BATCHER"
-    echo "challenger: $CHALLENGER"
-    echo "sequencer: $SEQUENCER"
-    echo "proposer: $PROPOSER"
-
-    echo "l1-contracts-release: $L1_CONTRACTS_RELEASE"
-    echo "l1-artifacts-locator: $L1_ARTIFACTS_LOCATOR"
-    echo "l2-artifacts-locator: $L2_ARTIFACTS_LOCATOR"
-    echo "absolute-prestate-hash: $ABSOLUTE_PRESTATE_HASH"
-    echo "protocol-version: $PROTOCOL_VERSION"
-
     INTENT_FILE=$WORK_DIR/intent.toml
     SUPERCHAIN_FILE=$WORK_DIR/superchain.json
     IMPLEMENTATIONS_FILE=$WORK_DIR/implementations.json
@@ -366,11 +338,14 @@ in
     ROLLUP_FILE=$WORK_DIR/rollup.json
 
     echo "Initializing OP chain"
-    op-deployer init \
-        --l1-chain-id $L1_CHAIN_ID \
-        --l2-chain-ids $L2_CHAIN_ID \
-        --workdir $WORKING_DIR \
-        --intent-config-type custom
+    ${op-deployer} init --l1-chain-id $L1_CHAIN_ID --l2-chain-ids $L2_CHAIN_ID --workdir $WORKING_DIR --intent-type custom
+
+    if [[ $? -ne 0 ]]; then
+      echo "Initializing OP chain failed, exiting..."
+      exit 1
+    fi
+
+    exit 0
 
     echo "Setting chain parameters"
     ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559DenominatorCanyon" -v 250
@@ -382,7 +357,7 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t string -v "$L2_ARTIFACTS_LOCATOR" "l2ContractsLocator"
 
     echo "Bootstraping superchain"
-    op-deployer bootstrap superchain \
+    ${op-deployer} bootstrap superchain \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
@@ -392,6 +367,10 @@ in
         --superchain-proxy-admin-owner $SUPERCHAIN_PROXY_ADMIN_OWNER \
         --protocol-versions-owner $PROTOCOL_VERSIONS_OWNER \
         --outfile $SUPERCHAIN_FILE
+    if [[ $? -ne 0 ]]; then
+      echo "Bootstrapping superchain failed, exiting..."
+      exit 1
+    fi
 
     # Set all roles
     echo "Setting superchain roles"
@@ -418,7 +397,6 @@ in
 
     # bootstrap implementations
     SUPERCHAIN_CONFIG_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
-
     PROTOCOL_VERSIONS_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
 
     echo "Bootstrapping implementations"
@@ -431,6 +409,10 @@ in
         --l1-contracts-release $L1_CONTRACTS_RELEASE \
         --upgrade-controller $UPGRADE_CONTROLLER \
         --outfile $IMPLEMENTATIONS_FILE
+    if [[ $? -ne 0 ]]; then
+      echo "Bootstrapping implementations failed, exiting..."
+      exit 1
+    fi
 
     echo "Bootstraping proxy"
     ${op-deployer} bootstrap proxy \
@@ -439,12 +421,20 @@ in
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
         --proxy-owner $L1_PROXY_ADMIN_OWNER \
         --outfile $PROXY_FILE
+    if [[ $? -ne 0 ]]; then
+      echo "Bootstrapping proxy failed, exiting..."
+      exit 1
+    fi
 
     echo "Applying config"
     ${op-deployer} apply \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --workdir $WORK_DIR
+    if [[ $? -ne 0 ]]; then
+      echo "Applying config failed, exiting..."
+      exit 1
+    fi
 
     echo "Generating op-geth genesis file"
     ${op-deployer} inspect genesis \
