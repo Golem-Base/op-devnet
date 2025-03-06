@@ -30,5 +30,6 @@ stdenv.mkDerivation rec {
     homepage = "https://github.com/ethpandaops/dora";
     license = licenses.gpl3;
     platforms = platforms.linux;
+    mainProgram = "dora-explorer";
   };
 }

@@ -13,13 +13,11 @@ buildGoModule rec {
     hash = "sha256-PyQLMm0JYbFfXEilPWeNwl6gaRZOhxUuoSBalr1gw58=";
   };
 
+  patches = [./chain_id_2345.patch];
+
   vendorHash = "sha256-/jW5EPRGjUi5ZrOBS08bXfP0x1KHFgelY7WseDvGzFM=";
 
   doCheck = false;
-
-  postInstall = ''
-    mv $out/bin/op-deployer $out/bin/op-deployer-dev
-  '';
 
   subPackages = ["op-deployer/cmd/op-deployer"];
 
