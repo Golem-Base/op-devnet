@@ -1,3 +1,24 @@
+diff --git a/op-deployer/pkg/deployer/broadcaster/gas_estimator.go b/op-deployer/pkg/deployer/broadcaster/gas_estimator.go
+index b04390fc8a..f81e8eb888 100644
+--- a/op-deployer/pkg/deployer/broadcaster/gas_estimator.go
++++ b/op-deployer/pkg/deployer/broadcaster/gas_estimator.go
+@@ -12,14 +12,14 @@ var (
+ 	// baseFeePadFactor = 50% as a divisor
+ 	baseFeePadFactor = big.NewInt(2)
+ 	// tipMulFactor = 5 as a multiplier
+-	tipMulFactor = big.NewInt(5)
++	tipMulFactor = big.NewInt(1)
+ 	// dummyBlobFee is a dummy value for the blob fee. Since this gas estimator will never
+ 	// post blobs, it's just set to 1.
+ 	dummyBlobFee = big.NewInt(1)
+ 	// maxTip is the maximum tip that can be suggested by this estimator.
+ 	maxTip = big.NewInt(50 * 1e9)
+ 	// minTip is the minimum tip that can be suggested by this estimator.
+-	minTip = big.NewInt(1 * 1e9)
++	minTip = big.NewInt(1 * 1e7)
+ )
+ 
+ // DeployerGasPriceEstimator is a custom gas price estimator for use with op-deployer.
 diff --git a/op-deployer/pkg/deployer/standard/standard.go b/op-deployer/pkg/deployer/standard/standard.go
 index 1f43b33fe1..2551018bfd 100644
 --- a/op-deployer/pkg/deployer/standard/standard.go
