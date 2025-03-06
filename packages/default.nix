@@ -1,5 +1,5 @@
 _: {
-  imports = [./deploy-optimism];
+  imports = [./deploy-optimism-script];
   perSystem = {pkgs, ...}: let
     inherit (pkgs) callPackage;
   in {
@@ -9,7 +9,7 @@ _: {
       prysm = callPackage ./prysm {inherit bls blst;};
       kurtosis = callPackage ./kurtosis {};
       dora = callPackage ./dora {};
-      blockscout = callPackage ./blockscout {};
+      # blockscout = callPackage ./blockscout {};
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
 
       # op stack (supports contracts v1_3_0 to v1_8_0)
@@ -22,6 +22,7 @@ _: {
       contracts-bedrock-v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix {};
 
       op-config = import ./op-config {inherit pkgs;};
+      deploy-optimism = callPackage ./deploy-optimism {};
 
       # op stack (supports contracts v2.0.0)
       op-batcher-v1_11_4 = callPackage ./op-batcher/op-batcher-v1_11_4.nix {};

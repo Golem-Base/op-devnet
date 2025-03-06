@@ -220,113 +220,112 @@
           # L2
           l2-op-validator-init = {
             command = ''
-              # TODO: Pass arguments here
               ${op-deployer-init}
             '';
             depends_on."seed-l1".condition = "process_completed_successfully";
           };
 
-          l2-op-geth-init = {
-            command = ''
-              ${op_geth} init \
-                --state.scheme=hash \
-                --datadir "$OP_GETH_DIR" \
-                $OP_GENESIS_CONFIG
-            '';
-            depends_on."l2-op-validator-init".condition = "process_completed_successfully";
-          };
+          # l2-op-geth-init = {
+          #   command = ''
+          #     ${op_geth} init \
+          #       --state.scheme=hash \
+          #       --datadir "$OP_GETH_DIR" \
+          #       $OP_GENESIS_CONFIG
+          #   '';
+          #   depends_on."l2-op-validator-init".condition = "process_completed_successfully";
+          # };
 
-          l2-op-geth = {
-            command = ''
-              ${op_geth} \
-                --networkid $L2_NETWORK_ID \
-                --datadir="$OP_GETH_DIR" \
-                --http \
-                --http.corsdomain="*" \
-                --http.vhosts="*" \
-                --http.addr=0.0.0.0 \
-                --http.port=${OP_GETH_HTTP_PORT} \
-                --http.api=web3,debug,eth,txpool,net,engine \
-                --ws \
-                --ws.addr=0.0.0.0 \
-                --ws.port=${OP_GETH_WS_PORT} \
-                --ws.origins="*" \
-                --ws.api=debug,eth,txpool,net,engine,web3 \
-                --nodiscover \
-                --maxpeers=0 \
-                --syncmode=full \
-                --gcmode=archive \
-                --authrpc.vhosts="*" \
-                --authrpc.addr=0.0.0.0 \
-                --authrpc.port=${OP_GETH_AUTH_PORT} \
-                --authrpc.jwtsecret=$JWT \
-                --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
-                --rollup.disabletxpoolgossip=true \
-                --port=30303 \
-                --db.engine=pebble \
-                --state.scheme=hash
-            '';
-            depends_on."l2-op-geth-init".condition = "process_completed_successfully";
-          };
+          # l2-op-geth = {
+          #   command = ''
+          #     ${op_geth} \
+          #       --networkid $L2_NETWORK_ID \
+          #       --datadir="$OP_GETH_DIR" \
+          #       --http \
+          #       --http.corsdomain="*" \
+          #       --http.vhosts="*" \
+          #       --http.addr=0.0.0.0 \
+          #       --http.port=${OP_GETH_HTTP_PORT} \
+          #       --http.api=web3,debug,eth,txpool,net,engine \
+          #       --ws \
+          #       --ws.addr=0.0.0.0 \
+          #       --ws.port=${OP_GETH_WS_PORT} \
+          #       --ws.origins="*" \
+          #       --ws.api=debug,eth,txpool,net,engine,web3 \
+          #       --nodiscover \
+          #       --maxpeers=0 \
+          #       --syncmode=full \
+          #       --gcmode=archive \
+          #       --authrpc.vhosts="*" \
+          #       --authrpc.addr=0.0.0.0 \
+          #       --authrpc.port=${OP_GETH_AUTH_PORT} \
+          #       --authrpc.jwtsecret=$JWT \
+          #       --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
+          #       --rollup.disabletxpoolgossip=true \
+          #       --port=30303 \
+          #       --db.engine=pebble \
+          #       --state.scheme=hash
+          #   '';
+          #   depends_on."l2-op-geth-init".condition = "process_completed_successfully";
+          # };
 
-          l2-op-node = {
-            command = ''
-              ${op_node} \
-                --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
-                --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
-                --l1.trustrpc \
-                --l1.rpckind=standard \
-                --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
-                --l2.jwt-secret=$JWT \
-                --l2.enginekind=geth \
-                --rpc.addr=0.0.0.0 \
-                --rpc.port=${OP_NODE_RPC_PORT} \
-                --rpc.enable-admin \
-                --syncmode=consensus-layer \
-                --sequencer.enabled \
-                --sequencer.l1-confs=5 \
-                --verifier.l1-confs=4 \
-                --rollup.config=$OP_ROLLUP_CONFIG \
-                --p2p.disable
-            '';
-            depends_on."l2-op-geth".condition = "process_started";
-          };
+          # l2-op-node = {
+          #   command = ''
+          #     ${op_node} \
+          #       --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
+          #       --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
+          #       --l1.trustrpc \
+          #       --l1.rpckind=standard \
+          #       --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
+          #       --l2.jwt-secret=$JWT \
+          #       --l2.enginekind=geth \
+          #       --rpc.addr=0.0.0.0 \
+          #       --rpc.port=${OP_NODE_RPC_PORT} \
+          #       --rpc.enable-admin \
+          #       --syncmode=consensus-layer \
+          #       --sequencer.enabled \
+          #       --sequencer.l1-confs=5 \
+          #       --verifier.l1-confs=4 \
+          #       --rollup.config=$OP_ROLLUP_CONFIG \
+          #       --p2p.disable
+          #   '';
+          #   depends_on."l2-op-geth".condition = "process_started";
+          # };
 
-          l2-op-batcher = {
-            command = ''
-              ${op_batcher} \
-                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
-                --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --poll-interval=1s \
-                --sub-safety-margin=6 \
-                --num-confirmations=1 \
-                --safe-abort-nonce-too-low-count=3 \
-                --resubmission-timeout=30s \
-                --rpc.addr=0.0.0.0 \
-                --rpc.port=${OP_BATCHER_RPC_PORT} \
-                --rpc.enable-admin \
-                --max-channel-duration=25 \
-                --private-key=$(cat "$OP_BATCHER_DIR/key") \
-                --throttle-threshold=0
-            '';
-            depends_on."l2-op-node".condition = "process_started";
-          };
+          # l2-op-batcher = {
+          #   command = ''
+          #     ${op_batcher} \
+          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
+          #       --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+          #       --poll-interval=1s \
+          #       --sub-safety-margin=6 \
+          #       --num-confirmations=1 \
+          #       --safe-abort-nonce-too-low-count=3 \
+          #       --resubmission-timeout=30s \
+          #       --rpc.addr=0.0.0.0 \
+          #       --rpc.port=${OP_BATCHER_RPC_PORT} \
+          #       --rpc.enable-admin \
+          #       --max-channel-duration=25 \
+          #       --private-key=$(cat "$OP_BATCHER_DIR/key") \
+          #       --throttle-threshold=0
+          #   '';
+          #   depends_on."l2-op-node".condition = "process_started";
+          # };
 
-          l2-op-proposer = {
-            command = ''
-              ${op_proposer} \
-                --poll-interval=12s \
-                --rpc.port=${OP_PROPOSER_RPC_PORT} \
-                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --game-factory-address=0x987c42b9184a4bdab7df2ad5c0c0a1e68ecb5b22 \
-                --game-type 1 \
-                --proposal-interval=60s \
-                --private-key=$(cat "$OP_PROPOSER_DIR/key") \
-                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
-            '';
-            depends_on."l2-op-node".condition = "process_started";
-          };
+          # l2-op-proposer = {
+          #   command = ''
+          #     ${op_proposer} \
+          #       --poll-interval=12s \
+          #       --rpc.port=${OP_PROPOSER_RPC_PORT} \
+          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+          #       --game-factory-address=0x987c42b9184a4bdab7df2ad5c0c0a1e68ecb5b22 \
+          #       --game-type 1 \
+          #       --proposal-interval=60s \
+          #       --private-key=$(cat "$OP_PROPOSER_DIR/key") \
+          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
+          #   '';
+          #   depends_on."l2-op-node".condition = "process_started";
+          # };
 
           # misc
           dora = {
