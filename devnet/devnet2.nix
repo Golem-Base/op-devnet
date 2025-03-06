@@ -7,6 +7,7 @@
   }: let
     configs = pkgs.callPackage ./configs {};
     scripts = pkgs.callPackage ./scripts {};
+    inherit (import ./accounts.nix) accounts;
 
     # utils
     openssl = lib.getExe pkgs.openssl;
@@ -24,13 +25,15 @@
     op_node = lib.getExe pkgs.op-node-v1_11_2;
     op_proposer = lib.getExe pkgs.op-proposer-v1_10_0;
 
+    deploy-optimism = "${flakePkgs.deploy-optimism}/bin/deploy-optimism";
+
     # scripts
     check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
     seed-l1 = "${scripts.seed-l1}/bin/seed-l1";
-    op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
+    # op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
 
     # explorers
-    dora = lib.getExe pkgs.dora;
+    dora = lib.getExe flakePkgs.dora;
     # blockscout = lib.getExe flakePkgs.blockscout;
 
     # L1 specific config options
@@ -51,8 +54,8 @@
     OP_BATCHER_RPC_PORT = "8548";
     OP_PROPOSER_RPC_PORT = "8560";
 
-    SEEDER_ADDRESS = "0x03587Cce05D8CB6372029498810c7DAA5e7D3D15";
-    SEEDER_PRIVATE_KEY = "0x23aa374b34c33e93ab20bc2fe5bc0721f9914ac91c8209af50ec6bd99a6c6b0d";
+    SEEDER_ACCOUNT = lib.elemAt accounts 1;
+    DEPLOYER_ACCOUNT = lib.elemAt accounts 2;
 
     NUM_VALIDATORS = "64";
     GENESIS_TIME_DELAY = "0";
@@ -65,14 +68,13 @@
 
     genesis = configs.mkGenesis {
       chainId = L1_CHAIN_ID;
-      address = "0x35Ec8a72D8e218C252EaE18044b0cBb97c1e57bF";
+      inherit accounts;
       balance = "0x8ac7230489e80000"; # 10 ETH
-      seeder_address = SEEDER_ADDRESS;
-      seeder_balance = "0x8ac7230489e80000"; # 10 ETH
     };
     chain-config = configs.mkChainConfig {};
   in {
     process-compose."devnet2" = {
+      cli.options.port = 5656;
       # We always create a tmp working directory
       cli.preHook = ''
         cd "$(mktemp -d)"
@@ -98,9 +100,9 @@
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
         L2_NETWORK_ID="393530"
-        OP_GENSIS_CONFIG=$OP_DIR/deployer/genesis.json
-        OP_ROLLUP_CONFIG=$OP_DIR/deployer/rollup.json
-        OP_GETH_DIR=$OP_DIR/geth
+        export OP_GENSIS_CONFIG="$OP_DIR/deployer/genesis.json"
+        OP_ROLLUP_CONFIG="$OP_DIR/deployer/rollup.json"
+        OP_GETH_DIR="$OP_DIR/geth"
 
         export JWT
         export GETH_PASSWORD
@@ -118,8 +120,10 @@
       settings = {
         processes = {
           # L1
-          l1-genesis-init = {
+          l1-init = {
             command = ''
+              cat ${genesis}
+              ${jq} -r '.' ${genesis}
               ${prysm_ctl} testnet generate-genesis \
                 --fork deneb \
                 --num-validators ${NUM_VALIDATORS} \
@@ -164,7 +168,7 @@
                 --allow-insecure-unlock \
                 --password $GETH_PASSWORD
             '';
-            depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-beacon = {
             command = ''
@@ -188,7 +192,7 @@
                 --minimum-peers-per-subnet=0 \
                 --verbosity=info
             '';
-            depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-validator = {
             command = ''
@@ -202,25 +206,25 @@
                 --chain-config-file=${chain-config} \
                 --force-clear-db
             '';
-            depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-init-check = {
             command = ''
               ${check-l1-ready} 20 "http://localhost:${GETH_HTTP_PORT}"
             '';
-            depends_on."l1-genesis-init".condition = "process_completed_successfully";
+            depends_on."l1-init".condition = "process_completed_successfully";
           };
           seed-l1 = {
             command = ''
-              ${seed-l1} ${SEEDER_PRIVATE_KEY} "http://localhost:${GETH_HTTP_PORT}"
+              ${seed-l1} ${SEEDER_ACCOUNT.private-key} "http://localhost:${GETH_HTTP_PORT}"
             '';
             depends_on."l1-init-check".condition = "process_completed_successfully";
           };
 
           # L2
-          l2-op-validator-init = {
+          l2-init = {
             command = ''
-              ${op-deployer-init}
+              ${deploy-optimism}
             '';
             depends_on."seed-l1".condition = "process_completed_successfully";
           };
