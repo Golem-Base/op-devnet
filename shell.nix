@@ -11,6 +11,9 @@ _: {
         ssh-to-age
         go-ethereum
         alejandra
+
+        docker-compose
+
         self'.packages.prysm
         self'.packages.eth2-testnet-genesis
         self'.packages.kurtosis

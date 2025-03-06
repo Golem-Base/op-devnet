@@ -25,10 +25,10 @@
     GETH_METRICS_PORT = "8300";
     BEACON_HTTP_PORT = "4000";
     BEACON_RPC_PORT = "4001";
-    BEACON_METRICS_PORT = "4002";
+    BEACON_MONITORING_PORT = "4002";
     DORA_HTTP_PORT = "8082";
     VALIDATOR_HTTP_PORT = "7000";
-    VALIDATOR_METRICS_PORT = "7001";
+    VALIDATOR_MONITORING_PORT = "7001";
 
     SEEDER_ADDRESS = "0x03587Cce05D8CB6372029498810c7DAA5e7D3D15";
     SEEDER_PRIVATE_KEY = "0x23aa374b34c33e93ab20bc2fe5bc0721f9914ac91c8209af50ec6bd99a6c6b0d";
@@ -52,6 +52,8 @@
     chain-config = configs.mkChainConfig {};
   in {
     process-compose."devnet" = {
+      # Necessary as defaults to :8080 which conflicts with blockscout defaults
+      cli.options.port = 8899;
       # We always create a tmp working directory
       cli.preHook = ''
         cd "$(mktemp -d)"
@@ -154,7 +156,7 @@
                 --force-clear-db \
                 --suggested-fee-recipient=0x123463a4b065722e99115d6c222f267d9cabb524 \
                 --minimum-peers-per-subnet=0 \
-                --monitoring-port=${BEACON_METRICS_PORT} \
+                --monitoring-port=${BEACON_MONITORING_PORT} \
                 --verbosity=info
             '';
             depends_on."l1-genesis-init".condition = "process_completed_successfully";
@@ -169,7 +171,7 @@
                 --interop-start-index 0 \
                 --rpc-port=${VALIDATOR_HTTP_PORT} \
                 --chain-config-file=${chain-config} \
-                --monitoring-port=${VALIDATOR_METRICS_PORT} \
+                --monitoring-port=${VALIDATOR_MONITORING_PORT} \
                 --force-clear-db
             '';
             depends_on."l1-genesis-init".condition = "process_completed_successfully";

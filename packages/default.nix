@@ -1,5 +1,5 @@
 _: {
-  imports = [./deploy-optimism ./blockscout];
+  imports = [./deploy-optimism];
   perSystem = {pkgs, ...}: let
     inherit (pkgs) callPackage;
   in {
@@ -29,7 +29,7 @@ _: {
       op-node-v1_11_2 = callPackage ./op-node/op-node-v1_11_2.nix {};
       op-proposer-v1_10_0 = callPackage ./op-proposer/op-proposer-v1_10_0.nix {};
 
-      # blockscout = import ./blockscout {inherit pkgs;};
+      blockscout = callPackage ./blockscout {};
     };
   };
 }
