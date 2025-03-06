@@ -24,6 +24,7 @@
     op_geth = lib.getExe flakePkgs.op-geth-v1_101500_1;
     op_node = lib.getExe pkgs.op-node-v1_11_2;
     op_proposer = lib.getExe pkgs.op-proposer-v1_10_0;
+    op-deployer = lib.getExe flakePkgs.op-deployer-v0_2_0_rc1;
 
     deploy-optimism = "${flakePkgs.deploy-optimism}/bin/deploy-optimism";
 
@@ -262,7 +263,7 @@
                 --sequencer ${SEQUENCER.address} \
                 --proposer ${PROPOSER.address}
             '';
-            # depends_on."seed-l1".condition = "process_completed_successfully";
+            depends_on."seed-l1".condition = "process_completed_successfully";
           };
 
           # l2-op-geth-init = {

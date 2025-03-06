@@ -32,7 +32,7 @@
 
     # These are constants for this particular release (see https://github.com/Golem-Base/infra/blob/8c642fde58b0a06690064ce4fa4645f168f2d265/justfile for more explanations)
     L1_CONTRACTS_RELEASE="op-contracts/v2.0.0-rc.1"
-    L1_ARTIFACTS_LOCATOR="tag://op-contracts/v2.0.0-rc.1"
+    L1_ARTIFACTS_CHECKSUM="1e788c684d48232a85cf5f5bd3876e83d6d2240c80588f60e160faca0133eac8"
     L2_ARTIFACTS_LOCATOR="tag://op-contracts/v1.7.0-beta.1+l2-contracts"
     ABSOLUTE_PRESTATE_HASH="0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a"
     PROTOCOL_VERSION="0x0000000000000000000000000000000000000004000000000000000000000001"
@@ -66,7 +66,7 @@
       --proposer <ADDRESS>                       -
 
       --l1-contracts-release <RELEASE>           L1 contracts release             (default: op-contracts/v2.0.0-rc.1)
-      --l1-artifacts-locator <TAG>               Tagged L1 contracts artifacts    (default: tag://op-contracts/v2.0.0-rc.1)
+      --l1-artifacts-checksum <CHECKSUM>         L1 contracts commit hash         (default: 1e788c684d48232a85cf5f5bd3876e83d6d2240c80588f60e160faca0133eac8)
       --l2-artifacts-locator <TAG>               Tagged L2 contracts artifacts    (default: tag://op-contracts/v1.7.0-beta.1+l2-contracts)
       --absolute-prestate-hash <HASH>            Absolute prestate hash           (default: 0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a)
       --protocol-version <HASH>                  Protocol version hash            (default: 0x0000000000000000000000000000000000000004000000000000000000000001)
@@ -77,7 +77,7 @@
     }
 
     OPTIONS=h
-    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,l1-contracts-release:,l1-artifacts-locator:,l2-artifacts-locator:,absolute-prestate-hash:,protocol-version:
+    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,l1-contracts-release:,l1-artifacts-checksum:,l2-artifacts-locator:,absolute-prestate-hash:,protocol-version:
 
     TEMP=$(getopt -o "$OPTIONS" --long "$LONGOPTS" -n "''${0##*/}" -- "$@") || {
       usage
@@ -173,8 +173,8 @@
         shift 2
         ;;
 
-      --l1-artifacts-locator)
-        L1_ARTIFACTS_LOCATOR="$2"
+      --l1-artifacts-checksum)
+        L1_ARTIFACTS_CHECKSUM="$2"
         shift 2
         ;;
       --l2-artifacts-locator)
@@ -328,6 +328,7 @@
   '';
 in
   pkgs.writeShellScriptBin "deploy-optimism" ''
+    set -euo pipefail
     ${usage}
 
     INTENT_FILE=$WORK_DIR/intent.toml
@@ -337,15 +338,14 @@ in
     GENESIS_FILE=$WORK_DIR/genesis.json
     ROLLUP_FILE=$WORK_DIR/rollup.json
 
+    L1_ARTIFACTS_LOCATOR="https://storage.googleapis.com/oplabs-contract-artifacts/artifacts-v1-$L1_ARTIFACTS_CHECKSUM.tar.gz"
+
     echo "Initializing OP chain"
-    ${op-deployer} init --l1-chain-id $L1_CHAIN_ID --l2-chain-ids $L2_CHAIN_ID --workdir $WORKING_DIR --intent-type custom
-
-    if [[ $? -ne 0 ]]; then
-      echo "Initializing OP chain failed, exiting..."
-      exit 1
-    fi
-
-    exit 0
+    ${op-deployer} init \
+        --l1-chain-id $L1_CHAIN_ID \
+        --l2-chain-ids $L2_CHAIN_ID \
+        --workdir $WORK_DIR \
+        --intent-type custom
 
     echo "Setting chain parameters"
     ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559DenominatorCanyon" -v 250
@@ -367,15 +367,11 @@ in
         --superchain-proxy-admin-owner $SUPERCHAIN_PROXY_ADMIN_OWNER \
         --protocol-versions-owner $PROTOCOL_VERSIONS_OWNER \
         --outfile $SUPERCHAIN_FILE
-    if [[ $? -ne 0 ]]; then
-      echo "Bootstrapping superchain failed, exiting..."
-      exit 1
-    fi
 
     # Set all roles
     echo "Setting superchain roles"
     ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.proxyAdminOwner" -v "$SUPERCHAIN_PROXY_ADMIN_OWNER"
-    ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.protocolVersionsOwner" -v "$PROTOCOLS_VERSION_OWNER"
+    ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.protocolVersionsOwner" -v "$PROTOCOL_VERSIONS_OWNER"
     ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.guardian" -v "$GUARDIAN"
 
     echo "Setting vault, L1 fee and sequencer fee vault address recipient"
@@ -395,9 +391,14 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.sequencer" -v "$SEQUENCER"
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.proposer" -v "$PROPOSER"
 
+    cat $INTENT_FILE
+    echo "------------------------------"
+    cat $SUPERCHAIN_FILE
+
     # bootstrap implementations
-    SUPERCHAIN_CONFIG_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
-    PROTOCOL_VERSIONS_PROXY = $(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
+    SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
+    SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainProxyAdmin" -w plain)
+    PROTOCOL_VERSIONS_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
 
     echo "Bootstrapping implementations"
     ${op-deployer} bootstrap implementations \
@@ -409,10 +410,6 @@ in
         --l1-contracts-release $L1_CONTRACTS_RELEASE \
         --upgrade-controller $UPGRADE_CONTROLLER \
         --outfile $IMPLEMENTATIONS_FILE
-    if [[ $? -ne 0 ]]; then
-      echo "Bootstrapping implementations failed, exiting..."
-      exit 1
-    fi
 
     echo "Bootstraping proxy"
     ${op-deployer} bootstrap proxy \
@@ -421,20 +418,12 @@ in
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
         --proxy-owner $L1_PROXY_ADMIN_OWNER \
         --outfile $PROXY_FILE
-    if [[ $? -ne 0 ]]; then
-      echo "Bootstrapping proxy failed, exiting..."
-      exit 1
-    fi
 
     echo "Applying config"
     ${op-deployer} apply \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $L1_RPC_URL \
         --workdir $WORK_DIR
-    if [[ $? -ne 0 ]]; then
-      echo "Applying config failed, exiting..."
-      exit 1
-    fi
 
     echo "Generating op-geth genesis file"
     ${op-deployer} inspect genesis \
