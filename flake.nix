@@ -28,7 +28,6 @@
         ./formatter.nix
         ./packages
         ./devnet
-        ./devnet/devnet2.nix
       ];
 
       systems = ["x86_64-linux"];
