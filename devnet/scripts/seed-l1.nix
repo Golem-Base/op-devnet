@@ -2,6 +2,8 @@
   cast = "${pkgs.foundry}/bin/cast";
 in
   pkgs.writeShellScriptBin "seed-l1" ''
+    set -euo pipefail
+
     PRIVATE_KEY=$1
     RPC_URL=$2
 
@@ -13,11 +15,6 @@ in
       --private-key $PRIVATE_KEY \
       --priority-gas-price 15gwei \
       --gas-price 100gwei
-
-    if [ $? -ne 0 ]; then
-        echo "Could not execute seed transaction"
-        exit 1
-    fi
 
     echo "Seeding transaction executed successfully..."
   ''

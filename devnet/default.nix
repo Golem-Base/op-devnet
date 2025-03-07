@@ -13,6 +13,7 @@
     # utils
     openssl = lib.getExe pkgs.openssl;
     jq = lib.getExe pkgs.jq;
+    cast = "${pkgs.foundry}/bin/cast";
 
     #L1
     geth = lib.getExe pkgs.go-ethereum;
@@ -31,6 +32,7 @@
     # scripts
     check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
     seed-l1 = "${scripts.seed-l1}/bin/seed-l1";
+    seed-l2 = "${scripts.seed-l2}/bin/seed-l2";
     # op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
 
     # explorers
@@ -58,6 +60,7 @@
     OP_BATCHER_RPC_PORT = "8548";
     OP_PROPOSER_RPC_PORT = "8560";
 
+    USER_ACCOUNT = lib.elemAt accounts 0;
     SEEDER_ACCOUNT = lib.elemAt accounts 1;
     DEPLOYER_ACCOUNT = lib.elemAt accounts 2;
 
@@ -124,6 +127,7 @@
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
         OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
+        OP_L1_ADDRESSES_FILE="$OP_DEPLOYER_DIR/l1_addresses.json"
         OP_IMPLEMENTATIONS_CONFIG="$OP_DEPLOYER_DIR/implementations.json"
         OP_ROLLUP_CONFIG="$OP_DEPLOYER_DIR/rollup.json"
         OP_GETH_DIR="$OP_DIR/op-geth"
@@ -141,6 +145,7 @@
         export OP_ROLLUP_CONFIG
         export OP_GETH_DIR
         export OP_IMPLEMENTATIONS_CONFIG
+        export OP_L1_ADDRESSES_FILE
       '';
 
       settings = {
@@ -362,7 +367,7 @@
                 --wait-node-sync \
                 --throttle-threshold=0
             '';
-            depends_on."l2-el-init".condition = "process_started";
+            depends_on."l2-el-init".condition = "process_completed_successfully";
           };
 
           l2-cl-proposer = {
@@ -377,7 +382,20 @@
                 --private-key=${PROPOSER.private-key} \
                 --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
             '';
-            depends_on."l2-el-init".condition = "process_started";
+            depends_on."l2-el-init".condition = "process_completed_successfully";
+          };
+          seed-l2 = {
+            command = ''
+              # TODO Sleep here so L2 initialises, improve this
+              sleep 5
+              ${seed-l2} \
+                ${USER_ACCOUNT.private-key} \
+                "http://localhost:${GETH_HTTP_PORT}" \
+                "http://localhost:${OP_GETH_HTTP_PORT}" \
+                "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
+                $(${cast} 2w 1)
+            '';
+            depends_on."l2-el-init".condition = "process_completed_successfully";
           };
 
           # misc
