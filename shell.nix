@@ -11,6 +11,10 @@ _: {
         ssh-to-age
         go-ethereum
         alejandra
+        self'.packages.op-geth-v1_101500_1
+        self'.packages.op-node-v1_11_2
+        self'.packages.op-batcher-v1_11_4
+        self'.packages.op-proposer-v1_10_0
         self'.packages.prysm
         self'.packages.eth2-testnet-genesis
         self'.packages.kurtosis

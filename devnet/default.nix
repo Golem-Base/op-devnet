@@ -16,16 +16,15 @@
 
     #L1
     geth = lib.getExe pkgs.go-ethereum;
-    prysm_beacon = lib.getExe self'.packages.prysm;
-    prysm_ctl = "${self'.packages.prysm}/bin/prysmctl";
-    prysm_validator = "${self'.packages.prysm}/bin/validator";
+    prysm-beacon = lib.getExe self'.packages.prysm;
+    prysm-ctl = "${self'.packages.prysm}/bin/prysmctl";
+    prysm-validator = "${self'.packages.prysm}/bin/validator";
 
     # L2
-    op_batcher = lib.getExe pkgs.op-batcher-v1_11_4;
-    op_geth = lib.getExe self'.packages.op-geth-v1_101500_1;
-    op_node = lib.getExe pkgs.op-node-v1_11_2;
-    op_proposer = lib.getExe pkgs.op-proposer-v1_10_0;
-    op-deployer = lib.getExe self'.packages.op-deployer-v0_2_0_rc1;
+    op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
+    op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
+    op-node = lib.getExe self'.packages.op-node-v1_11_2;
+    op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
     deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
 
@@ -54,6 +53,7 @@
     OP_GETH_HTTP_PORT = "9545";
     OP_GETH_WS_PORT = "9546";
     OP_GETH_AUTH_PORT = "9551";
+    OP_GETH_DISCOVERY_PORT = "40404";
     OP_NODE_RPC_PORT = "7545";
     OP_BATCHER_RPC_PORT = "8548";
     OP_PROPOSER_RPC_PORT = "8560";
@@ -111,21 +111,25 @@
         mkdir -p "$DORA_DIR"
         mkdir -p "$OP_DEPLOYER_DIR"
 
-        JWT=$PWD/jwt.txt
+        L1_JWT=$PWD/l1-jwt.txt
+        L2_JWT=$PWD/l2-jwt.txt
         GETH_PASSWORD=$PWD/password.txt
 
         touch "$GETH_PASSWORD"
 
-        ${openssl} rand -hex 32 > "$JWT"
+        ${openssl} rand -hex 32 > "$L1_JWT"
+        ${openssl} rand -hex 32 > "$L2_JWT"
 
         DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
-        export OP_GENSIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
-        export OP_ROLLUP_CONFIG="$OP_DEPLOYER_DIR/rollup.json"
-        export OP_GETH_DIR="$OP_DIR/geth"
+        OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
+        OP_IMPLEMENTATIONS_CONFIG="$OP_DEPLOYER_DIR/implementations.json"
+        OP_ROLLUP_CONFIG="$OP_DEPLOYER_DIR/rollup.json"
+        OP_GETH_DIR="$OP_DIR/op-geth"
 
-        export JWT
+        export L1_JWT
+        export L2_JWT
         export GETH_PASSWORD
         export EXECUTION_DIR
         export CONSENSUS_DIR
@@ -133,6 +137,10 @@
         export DORA_CONFIG_PATH
         export OP_DIR
         export OP_DEPLOYER_DIR
+        export OP_GENESIS_CONFIG
+        export OP_ROLLUP_CONFIG
+        export OP_GETH_DIR
+        export OP_IMPLEMENTATIONS_CONFIG
       '';
 
       settings = {
@@ -142,7 +150,7 @@
             command = ''
               cat ${genesis}
               ${jq} -r '.' ${genesis}
-              ${prysm_ctl} testnet generate-genesis \
+              ${prysm-ctl} testnet generate-genesis \
                 --fork deneb \
                 --num-validators ${NUM_VALIDATORS} \
                 --genesis-time-delay ${GENESIS_TIME_DELAY} \
@@ -169,7 +177,7 @@
               ${geth} \
                 --networkid ${L1_CHAIN_ID}\
                 --http \
-                --http.api=admin,eth,net,web3 \
+                --http.api=admin,eth,net,debug,web3 \
                 --http.addr=127.0.0.1 \
                 --http.corsdomain="*" \
                 --http.port=${GETH_HTTP_PORT} \
@@ -177,7 +185,7 @@
                 --authrpc.vhosts="*" \
                 --authrpc.addr=127.0.0.1 \
                 --authrpc.port=${GETH_AUTH_PORT} \
-                --authrpc.jwtsecret=$JWT \
+                --authrpc.jwtsecret=$L1_JWT \
                 --datadir "$EXECUTION_DIR" \
                 --syncmode 'full' \
                 --nodiscover \
@@ -188,9 +196,9 @@
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
           };
-          l1-beacon = {
+          l1-cl-beacon = {
             command = ''
-              ${prysm_beacon} \
+              ${prysm-beacon} \
                 --datadir="$CONSENSUS_DIR/beacon" \
                 --min-sync-peers=0 \
                 --genesis-state="$CONSENSUS_DIR/genesis.ssz" \
@@ -204,7 +212,7 @@
                 --http-port=${BEACON_HTTP_PORT} \
                 --execution-endpoint=$EXECUTION_DIR/geth.ipc \
                 --accept-terms-of-use \
-                --jwt-secret=$JWT \
+                --jwt-secret=$L1_JWT \
                 --force-clear-db \
                 --suggested-fee-recipient=0x123463a4b065722e99115d6c222f267d9cabb524 \
                 --minimum-peers-per-subnet=0 \
@@ -212,9 +220,9 @@
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
           };
-          l1-validator = {
+          l1-cl-validator = {
             command = ''
-              ${prysm_validator} \
+              ${prysm-validator} \
                 --beacon-rpc-provider="127.0.0.1:${BEACON_RPC_PORT}" \
                 --datadir=$CONSENSUS_DIR/validator \
                 --accept-terms-of-use \
@@ -267,107 +275,110 @@
             depends_on."seed-l1".condition = "process_completed_successfully";
           };
 
-          # l2-el-init = {
-          #   command = ''
-          #     ${op_geth} init \
-          #       --state.scheme=hash \
-          #       --datadir "$OP_GETH_DIR" \
-          #       $OP_GENESIS_CONFIG
-          #   '';
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
+          l2-el-init = {
+            command = ''
+              ${op-geth} init \
+                --state.scheme=hash \
+                --datadir "$OP_GETH_DIR" \
+                $OP_GENESIS_CONFIG
+            '';
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
 
-          # l2-op-geth = {
-          #   command = ''
-          #     ${op_geth} \
-          #       --networkid $L2_NETWORK_ID \
-          #       --datadir="$OP_GETH_DIR" \
-          #       --http \
-          #       --http.corsdomain="*" \
-          #       --http.vhosts="*" \
-          #       --http.addr=0.0.0.0 \
-          #       --http.port=${OP_GETH_HTTP_PORT} \
-          #       --http.api=web3,debug,eth,txpool,net,engine \
-          #       --ws \
-          #       --ws.addr=0.0.0.0 \
-          #       --ws.port=${OP_GETH_WS_PORT} \
-          #       --ws.origins="*" \
-          #       --ws.api=debug,eth,txpool,net,engine,web3 \
-          #       --nodiscover \
-          #       --maxpeers=0 \
-          #       --syncmode=full \
-          #       --gcmode=archive \
-          #       --authrpc.vhosts="*" \
-          #       --authrpc.addr=0.0.0.0 \
-          #       --authrpc.port=${OP_GETH_AUTH_PORT} \
-          #       --authrpc.jwtsecret=$JWT \
-          #       --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
-          #       --rollup.disabletxpoolgossip=true \
-          #       --port=30303 \
-          #       --db.engine=pebble \
-          #       --state.scheme=hash
-          #   '';
-          #   depends_on."l2-op-geth-init".condition = "process_completed_successfully";
-          # };
+          l2-el = {
+            command = ''
+              ${op-geth} \
+                --networkid ${L2_CHAIN_ID} \
+                --datadir="$OP_GETH_DIR" \
+                --http \
+                --http.corsdomain="*" \
+                --http.vhosts="*" \
+                --http.addr=0.0.0.0 \
+                --http.port=${OP_GETH_HTTP_PORT} \
+                --http.api=web3,debug,eth,txpool,net,engine \
+                --ws \
+                --ws.addr=0.0.0.0 \
+                --ws.port=${OP_GETH_WS_PORT} \
+                --ws.origins="*" \
+                --ws.api=admin,debug,eth,txpool,net,engine,web3 \
+                --nodiscover \
+                --maxpeers=0 \
+                --syncmode=full \
+                --gcmode=archive \
+                --authrpc.vhosts="*" \
+                --authrpc.addr=0.0.0.0 \
+                --authrpc.port=${OP_GETH_AUTH_PORT} \
+                --authrpc.jwtsecret=$L2_JWT \
+                --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
+                --rollup.disabletxpoolgossip=true \
+                --port=${OP_GETH_DISCOVERY_PORT} \
+                --db.engine=pebble \
+                --state.scheme=hash
+            '';
+            depends_on."l2-el-init".condition = "process_completed_successfully";
+          };
 
-          # l2-op-node = {
-          #   command = ''
-          #     ${op_node} \
-          #       --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
-          #       --l1.trustrpc \
-          #       --l1.rpckind=standard \
-          #       --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
-          #       --l2.jwt-secret=$JWT \
-          #       --l2.enginekind=geth \
-          #       --rpc.addr=0.0.0.0 \
-          #       --rpc.port=${OP_NODE_RPC_PORT} \
-          #       --rpc.enable-admin \
-          #       --syncmode=consensus-layer \
-          #       --sequencer.enabled \
-          #       --sequencer.l1-confs=5 \
-          #       --verifier.l1-confs=4 \
-          #       --rollup.config=$OP_ROLLUP_CONFIG \
-          #       --p2p.disable
-          #   '';
-          #   depends_on."l2-op-geth".condition = "process_started";
-          # };
+          l2-cl-sequencer = {
+            command = ''
+              ${op-node} \
+                --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
+                --l1.trustrpc \
+                --l1.rpckind=debug_geth \
+                --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
+                --l2.jwt-secret=$L2_JWT \
+                --l2.enginekind=geth \
+                --rpc.addr=0.0.0.0 \
+                --rpc.port=${OP_NODE_RPC_PORT} \
+                --rpc.enable-admin \
+                --syncmode=consensus-layer \
+                --sequencer.enabled \
+                --sequencer.l1-confs=5 \
+                --verifier.l1-confs=4 \
+                --rollup.config=$OP_ROLLUP_CONFIG \
+                --rollup.load-protocol-versions=true \
+                --p2p.disable
+            '';
+            depends_on."l2-el-init".condition = "process_completed_successfully";
+          };
 
-          # l2-op-batcher = {
-          #   command = ''
-          #     ${op_batcher} \
-          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-          #       --poll-interval=1s \
-          #       --sub-safety-margin=6 \
-          #       --num-confirmations=1 \
-          #       --safe-abort-nonce-too-low-count=3 \
-          #       --resubmission-timeout=30s \
-          #       --rpc.addr=0.0.0.0 \
-          #       --rpc.port=${OP_BATCHER_RPC_PORT} \
-          #       --rpc.enable-admin \
-          #       --max-channel-duration=25 \
-          #       --private-key=$(cat "$OP_BATCHER_DIR/key") \
-          #       --throttle-threshold=0
-          #   '';
-          #   depends_on."l2-op-node".condition = "process_started";
-          # };
+          l2-cl-batcher = {
+            command = ''
+              ${op-batcher} \
+                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+                --poll-interval=1s \
+                --data-availability-type=blobs \
+                --sub-safety-margin=6 \
+                --num-confirmations=1 \
+                --safe-abort-nonce-too-low-count=3 \
+                --resubmission-timeout=30s \
+                --rpc.addr=0.0.0.0 \
+                --rpc.port=${OP_BATCHER_RPC_PORT} \
+                --rpc.enable-admin \
+                --max-channel-duration=25 \
+                --private-key=${BATCHER.private-key} \
+                --wait-node-sync \
+                --throttle-threshold=0
+            '';
+            depends_on."l2-el-init".condition = "process_started";
+          };
 
-          # l2-op-proposer = {
-          #   command = ''
-          #     ${op_proposer} \
-          #       --poll-interval=12s \
-          #       --rpc.port=${OP_PROPOSER_RPC_PORT} \
-          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-          #       --game-factory-address=0x987c42b9184a4bdab7df2ad5c0c0a1e68ecb5b22 \
-          #       --game-type 1 \
-          #       --proposal-interval=60s \
-          #       --private-key=$(cat "$OP_PROPOSER_DIR/key") \
-          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
-          #   '';
-          #   depends_on."l2-op-node".condition = "process_started";
-          # };
+          l2-cl-proposer = {
+            command = ''
+              ${op-proposer} \
+                --poll-interval=12s \
+                --rpc.port=${OP_PROPOSER_RPC_PORT} \
+                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+                --game-factory-address="$(jq -r ".DisputeGameFactoryImpl" $OP_IMPLEMENTATIONS_CONFIG)" \
+                --game-type 1 \
+                --proposal-interval=60s \
+                --private-key=${PROPOSER.private-key} \
+                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
+            '';
+            depends_on."l2-el-init".condition = "process_started";
+          };
 
           # misc
           dora = {
