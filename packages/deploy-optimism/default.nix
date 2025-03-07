@@ -336,6 +336,7 @@ in
     IMPLEMENTATIONS_FILE=$WORK_DIR/implementations.json
     PROXY_FILE=$WORK_DIR/proxy.json
     GENESIS_FILE=$WORK_DIR/genesis.json
+    L1_ADDRESSES_FILE=$WORK_DIR/l1_addresses.json
     ROLLUP_FILE=$WORK_DIR/rollup.json
 
     L1_ARTIFACTS_LOCATOR="https://storage.googleapis.com/oplabs-contract-artifacts/artifacts-v1-$L1_ARTIFACTS_CHECKSUM.tar.gz"
@@ -421,7 +422,7 @@ in
         --l1-rpc-url $L1_RPC_URL \
         --workdir $WORK_DIR
 
-    echo "Generating op-geth genesis file"
+    echo "Generating genesis file"
     ${op-deployer} inspect genesis \
         --workdir $WORK_DIR $L2_CHAIN_ID \
         > $GENESIS_FILE
@@ -430,4 +431,9 @@ in
     ${op-deployer} inspect rollup \
         --workdir $WORK_DIR $L2_CHAIN_ID \
         > $ROLLUP_FILE
+
+    echo "Generating l1 addresses file"
+    ${op-deployer} inspect l1 \
+        --workdir $WORK_DIR $L2_CHAIN_ID \
+        > $L1_ADDRESSES_FILE
   ''
