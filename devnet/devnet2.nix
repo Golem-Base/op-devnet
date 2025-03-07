@@ -1,7 +1,7 @@
 {
   perSystem = {
+    self',
     pkgs,
-    flakePkgs,
     lib,
     ...
   }: let
@@ -15,18 +15,18 @@
 
     #L1
     geth = lib.getExe pkgs.go-ethereum;
-    prysm_beacon = lib.getExe flakePkgs.prysm;
-    prysm_ctl = "${flakePkgs.prysm}/bin/prysmctl";
-    prysm_validator = "${flakePkgs.prysm}/bin/validator";
+    prysm_beacon = lib.getExe self'.packages.prysm;
+    prysm_ctl = "${self'.packages.prysm}/bin/prysmctl";
+    prysm_validator = "${self'.packages.prysm}/bin/validator";
 
     # L2
     op_batcher = lib.getExe pkgs.op-batcher-v1_11_4;
-    op_geth = lib.getExe flakePkgs.op-geth-v1_101500_1;
+    op_geth = lib.getExe self'.packages.op-geth-v1_101500_1;
     op_node = lib.getExe pkgs.op-node-v1_11_2;
     op_proposer = lib.getExe pkgs.op-proposer-v1_10_0;
-    op-deployer = lib.getExe flakePkgs.op-deployer-v0_2_0_rc1;
+    op-deployer = lib.getExe self'.packages.op-deployer-v0_2_0_rc1;
 
-    deploy-optimism = "${flakePkgs.deploy-optimism}/bin/deploy-optimism";
+    deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
 
     # scripts
     check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
@@ -34,8 +34,8 @@
     # op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
 
     # explorers
-    dora = lib.getExe flakePkgs.dora;
-    # blockscout = lib.getExe flakePkgs.blockscout;
+    # dora = lib.getExe self'.packages.dora;
+    # blockscout = lib.getExe self'.packages.blockscout;
 
     L1_CHAIN_ID = "2345";
     L2_CHAIN_ID = "3456";
@@ -369,13 +369,13 @@
           # };
 
           # misc
-          dora = {
-            command = ''
-              cd "$DORA_DIR"
-              ${dora} -config "$DORA_CONFIG_PATH"
-            '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
-          };
+          # dora = {
+          #   command = ''
+          #     cd "$DORA_DIR"
+          #     ${dora} -config "$DORA_CONFIG_PATH"
+          #   '';
+          #   depends_on."l1-init-check".condition = "process_completed_successfully";
+          # };
         };
       };
     };

@@ -17,7 +17,6 @@ in
       if [[ "$block_number" =~ ^[0-9]+$ ]] && [ "$block_number" -gt 0 ]; then
         echo "Success: Block number is $block_number"
         exit 0
-        break
       fi
 
       echo "Block number is $block_number, waiting 1 second..."

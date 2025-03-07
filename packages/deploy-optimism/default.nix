@@ -391,10 +391,6 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.sequencer" -v "$SEQUENCER"
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.proposer" -v "$PROPOSER"
 
-    cat $INTENT_FILE
-    echo "------------------------------"
-    cat $SUPERCHAIN_FILE
-
     # bootstrap implementations
     SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
     SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainProxyAdmin" -w plain)
