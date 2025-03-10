@@ -31,22 +31,5 @@
       ];
 
       systems = ["x86_64-linux"];
-
-      flake = let
-        inherit (inputs.nixpkgs) lib;
-        accounts = (import ./devnet/accounts.nix).accounts;
-        accountAllocs =
-          builtins.toJSON
-          (lib.listToAttrs
-            (lib.map (
-                account: {
-                  name = account.address;
-                  value = {balance = "0x0";};
-                }
-              )
-              accounts));
-      in {
-        inherit lib accountAllocs;
-      };
     };
 }
