@@ -1,5 +1,5 @@
 {
-  stdenv,
+  pkgs,
   beam,
   lib,
   fetchFromGitHub,
@@ -75,6 +75,25 @@
           sha256 = lib.fakeHash;
         };
         beamDeps = with final; [prometheus];
+      };
+
+      evision = prev.evision.override {
+        preBuild = ''
+          # https://github.com/NixOS/nix/issues/670#issuecomment-1211700127
+          export HOME=$(pwd)
+          ls -al
+          # cat mix.exs
+          # exit 1
+        '';
+      };
+
+      ex_keccak = prev.ex_keccak.override {
+        preBuild = ''
+          ls -al $src
+          cat $src/mix.exs
+          cat $src/lib/ex_keccak.ex
+          mkdir -p rustler_precompiled
+        '';
       };
     };
   };
