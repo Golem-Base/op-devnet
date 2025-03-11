@@ -9,6 +9,8 @@ _: {
       kurtosis = callPackage ./kurtosis {};
       dora = callPackage ./dora {};
 
+      blockscout = callPackage ./blockscout {};
+
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
 
       # op stack (supports contracts v1_3_0 to v1_8_0)
