@@ -15,6 +15,8 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    op-geth.url = "git+ssh://git@github.com/Golem-base/op-geth";
   };
 
   outputs = inputs @ {flake-parts, ...}:
