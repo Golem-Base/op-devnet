@@ -18,16 +18,6 @@
     hash = "sha256-cfAd58l+gJ9dY/XFYnnQorHLNAiXn//gi+iY17iWcsc=";
   };
 
-  mixFodDeps = beamPackages.fetchMixDeps {
-    pname = "mix-deps-${pname}";
-    inherit src version;
-    # nix will complain and tell you the right value to replace this with
-    hash = "sha256-oaJoG2MFbxtWAlSB7uAMbrWyzoF4si21JwIFVLerBII=";
-    # mixEnv = ""; # default is "prod", when empty includes all dependencies, such as "dev", "test".
-    # if you have build time environment variables add them here
-    # MY_ENV_VAR = "my_value";
-  };
-
   mixNixDeps = import ./mix_deps.nix {
     inherit lib beamPackages;
 
@@ -61,38 +51,70 @@
         src = beamPackages.fetchHex {
           pkg = "prometheus_ex";
           version = "${version}";
-          sha256 = "sha256-ke9yMqX8CBbE+oGniK6kqT5A7/gklmIjsJZEWJW1liI=";
+          sha256 = "sha256-vFhNM6q66UznXUd+tmxxeHVbRaCa+3rdslPZDrZgId4=";
         };
         beamDeps = with final; [prometheus];
       };
 
-      prometheus_process_collector = beamPackages.buildMix rec {
+      prometheus_process_collector = beamPackages.buildRebar3 rec {
         name = "prometheus_process_collector";
         version = "1.6.1";
         src = beamPackages.fetchHex {
           pkg = "prometheus_process_collector";
           version = "${version}";
-          sha256 = lib.fakeHash;
+          sha256 = "sha256-ke9yMqX8CBbE+oGniK6kqT5A7/gklmIjsJZEWJW1liI=";
         };
         beamDeps = with final; [prometheus];
       };
 
-      evision = prev.evision.override {
-        preBuild = ''
-          # https://github.com/NixOS/nix/issues/670#issuecomment-1211700127
-          export HOME=$(pwd)
-          ls -al
-          # cat mix.exs
-          # exit 1
+      ex_keccak = prev.ex_keccak.override {
+        preBuild = let
+          tarball = builtins.fetchurl {
+            url = "https://github.com/ExWeb3/ex_keccak/releases/download/v0.7.6/libexkeccak-v0.7.6-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz";
+            sha256 = "065zn88b6a6ih8zzhxlh1l8cpx3wpdbmjshpz30gg6c1ykv81j9k";
+          };
+        in ''
+          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
+          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
+
+          mkdir -p priv/native/ex_keccak
+          cd priv/native/ex_keccak
+          tar -xzvf ${tarball}
+          cd -
         '';
       };
 
-      ex_keccak = prev.ex_keccak.override {
-        preBuild = ''
-          ls -al $src
-          cat $src/mix.exs
-          cat $src/lib/ex_keccak.ex
-          mkdir -p rustler_precompiled
+      ex_secp256k1 = prev.ex_secp256k1.override {
+        preBuild = let
+          tarball = builtins.fetchurl {
+            url = "https://github.com/ayrat555/ex_secp256k1/releases/download/v0.7.4/libex_secp256k1-v0.7.4-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz";
+            sha256 = "0bd8jx3gdx7dkhs9q8vqgh4kifv0k3alxflm0qll2zs7cy20qxiz";
+          };
+        in ''
+          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
+          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
+
+          mkdir -p priv/native/ex_secp256k1
+          cd priv/native/ex_secp256k1
+          tar -xzvf ${tarball}
+          cd -
+        '';
+      };
+
+      ex_brotli = prev.ex_brotli.override {
+        preBuild = let
+          tarball = builtins.fetchurl {
+            url = "https://github.com/mfeckie/ex_brotli/releases/download/0.5.0/libex_brotli-v0.5.0-nif-2.15-x86_64-unknown-linux-gnu.so.tar.gz";
+            sha256 = "18hjhaqx5py57l94cnsjr6csv0gk467was5svzr68qq8hbbjpqjf";
+          };
+        in ''
+          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
+          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
+
+          mkdir -p priv/native/ex_brotli
+          cd priv/native/ex_brotli
+          tar -xzvf ${tarball}
+          cd -
         '';
       };
     };
@@ -101,6 +123,7 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
+    patches = [./removed_nft_media_handler.patch];
     # inherit mixFodDeps;
     # if you have build time environment variables add them here
     # MY_ENV_VAR = "my_value";
