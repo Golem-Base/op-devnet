@@ -40,7 +40,10 @@ in
     inherit src version;
     pname = "dora";
 
-    nativeBuildInputs = [autoPatchelfHook];
+    nativeBuildInputs =
+      if stdenv.hostPlatform.system == "x86_64-linux"
+      then [autoPatchelfHook]
+      else [];
 
     unpackPhase = ''
       tar -xzf $src
