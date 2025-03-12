@@ -49,8 +49,10 @@
     GETH_METRICS_PORT = "8300";
     BEACON_HTTP_PORT = "4000";
     BEACON_RPC_PORT = "4001";
+    BEACON_METRICS_PORT = "4041";
     DORA_HTTP_PORT = "8082";
     VALIDATOR_HTTP_PORT = "7000";
+    VALIDATOR_METRICS_PORT = "7071";
 
     # OP-specific ports
     OP_GETH_HTTP_PORT = "9545";
@@ -158,9 +160,10 @@
           # L1
           l1-blockscout-db = {
             command = ''
-              cp ${./blockscout/db.yml} $L1_BLOCKSCOUT_DB_DIR/config.yml
-              ${docker} compose -f $L1_BLOCKSCOUT_DB_DIR/config.yml up
+              cp -r ${./blockscout}/* $L1_BLOCKSCOUT_DB_DIR
+              ${docker} compose -f $L1_BLOCKSCOUT_DB_DIR/no-services.yml up
             '';
+            # This shutdown command stops all running processes and removes any running containers
             shutdown.command = ''
               docker kill $(docker ps -q) && \
                 docker container rm -f $(docker container ls -aq) && \
@@ -233,6 +236,7 @@
                 --rpc-host=127.0.0.1 \
                 --rpc-port=${BEACON_RPC_PORT} \
                 --http-port=${BEACON_HTTP_PORT} \
+                --monitoring-port=${BEACON_METRICS_PORT} \
                 --execution-endpoint=$EXECUTION_DIR/geth.ipc \
                 --accept-terms-of-use \
                 --jwt-secret=$L1_JWT \
@@ -248,6 +252,7 @@
               ${prysm-validator} \
                 --beacon-rpc-provider="127.0.0.1:${BEACON_RPC_PORT}" \
                 --datadir=$CONSENSUS_DIR/validator \
+                --monitoring-port=${VALIDATOR_METRICS_PORT} \
                 --accept-terms-of-use \
                 --interop-num-validators ${NUM_VALIDATORS} \
                 --interop-start-index 0 \
