@@ -12,6 +12,7 @@
 
     # utils
     openssl = lib.getExe pkgs.openssl;
+    docker = lib.getExe pkgs.docker;
     jq = lib.getExe pkgs.jq;
     cast = "${pkgs.foundry}/bin/cast";
 
@@ -109,10 +110,13 @@
         OP_DIR="$PWD/op"
         OP_DEPLOYER_DIR="$OP_DIR/deployer"
 
+        L1_BLOCKSCOUT_DB_DIR="$PWD/blockscout/db"
+
         mkdir -p "$EXECUTION_DIR"
         mkdir -p "$CONSENSUS_DIR/{beacon,validator}"
         mkdir -p "$DORA_DIR"
         mkdir -p "$OP_DEPLOYER_DIR"
+        mkdir -p "$L1_BLOCKSCOUT_DB_DIR"
 
         L1_JWT=$PWD/l1-jwt.txt
         L2_JWT=$PWD/l2-jwt.txt
@@ -146,10 +150,24 @@
         export OP_GETH_DIR
         export OP_IMPLEMENTATIONS_CONFIG
         export OP_L1_ADDRESSES_FILE
+        export L1_BLOCKSCOUT_DB_DIR
       '';
 
       settings = {
         processes = {
+          # L1
+          l1-blockscout-db = {
+            command = ''
+              cp ${./blockscout/db.yml} $L1_BLOCKSCOUT_DB_DIR/config.yml
+              ${docker} compose -f $L1_BLOCKSCOUT_DB_DIR/config.yml up
+            '';
+            shutdown.command = ''
+              docker kill $(docker ps -q) && \
+                docker container rm -f $(docker container ls -aq) && \
+                docker volume rm -f $(docker volume ls -q)
+            '';
+          };
+
           # L1
           l1-init = {
             command = ''
@@ -245,167 +263,167 @@
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
           };
-          seed-l1 = {
-            command = ''
-              ${seed-l1} ${SEEDER_ACCOUNT.private-key} "http://localhost:${GETH_HTTP_PORT}"
-            '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
-          };
+          # seed-l1 = {
+          #   command = ''
+          #     ${seed-l1} ${SEEDER_ACCOUNT.private-key} "http://localhost:${GETH_HTTP_PORT}"
+          #   '';
+          #   depends_on."l1-init-check".condition = "process_completed_successfully";
+          # };
 
           # L2
-          l2-init = {
-            command = ''
-              ${deploy-optimism} \
-                --rpc-url ${GETH_HTTP_PORT} \
-                --private-key ${DEPLOYER_ACCOUNT.private-key} \
-                --l1-chain-id ${L1_CHAIN_ID} \
-                --l2-chain-id ${L2_CHAIN_ID} \
-                --work-dir $OP_DEPLOYER_DIR \
-                --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
-                --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
-                --guardian ${GUARDIAN.address} \
-                --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
-                --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
-                --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
-                --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
-                --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
-                --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
-                --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
-                --upgrade-controller ${UPGRADE_CONTROLLER.address} \
-                --batcher ${BATCHER.address} \
-                --challenger ${CHALLENGER.address} \
-                --sequencer ${SEQUENCER.address} \
-                --proposer ${PROPOSER.address}
-            '';
-            depends_on."seed-l1".condition = "process_completed_successfully";
-          };
+          # l2-init = {
+          #   command = ''
+          #     ${deploy-optimism} \
+          #       --rpc-url ${GETH_HTTP_PORT} \
+          #       --private-key ${DEPLOYER_ACCOUNT.private-key} \
+          #       --l1-chain-id ${L1_CHAIN_ID} \
+          #       --l2-chain-id ${L2_CHAIN_ID} \
+          #       --work-dir $OP_DEPLOYER_DIR \
+          #       --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
+          #       --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
+          #       --guardian ${GUARDIAN.address} \
+          #       --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
+          #       --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
+          #       --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
+          #       --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
+          #       --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
+          #       --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
+          #       --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
+          #       --upgrade-controller ${UPGRADE_CONTROLLER.address} \
+          #       --batcher ${BATCHER.address} \
+          #       --challenger ${CHALLENGER.address} \
+          #       --sequencer ${SEQUENCER.address} \
+          #       --proposer ${PROPOSER.address}
+          #   '';
+          #   depends_on."seed-l1".condition = "process_completed_successfully";
+          # };
 
-          l2-el-init = {
-            command = ''
-              ${op-geth} init \
-                --state.scheme=hash \
-                --datadir "$OP_GETH_DIR" \
-                $OP_GENESIS_CONFIG
-            '';
-            depends_on."l2-init".condition = "process_completed_successfully";
-          };
+          # l2-el-init = {
+          #   command = ''
+          #     ${op-geth} init \
+          #       --state.scheme=hash \
+          #       --datadir "$OP_GETH_DIR" \
+          #       $OP_GENESIS_CONFIG
+          #   '';
+          #   depends_on."l2-init".condition = "process_completed_successfully";
+          # };
 
-          l2-el = {
-            command = ''
-              ${op-geth} \
-                --networkid ${L2_CHAIN_ID} \
-                --datadir="$OP_GETH_DIR" \
-                --http \
-                --http.corsdomain="*" \
-                --http.vhosts="*" \
-                --http.addr=0.0.0.0 \
-                --http.port=${OP_GETH_HTTP_PORT} \
-                --http.api=web3,debug,eth,txpool,net,engine \
-                --ws \
-                --ws.addr=0.0.0.0 \
-                --ws.port=${OP_GETH_WS_PORT} \
-                --ws.origins="*" \
-                --ws.api=admin,debug,eth,txpool,net,engine,web3 \
-                --nodiscover \
-                --maxpeers=0 \
-                --syncmode=full \
-                --gcmode=archive \
-                --authrpc.vhosts="*" \
-                --authrpc.addr=0.0.0.0 \
-                --authrpc.port=${OP_GETH_AUTH_PORT} \
-                --authrpc.jwtsecret=$L2_JWT \
-                --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
-                --rollup.disabletxpoolgossip=true \
-                --port=${OP_GETH_DISCOVERY_PORT} \
-                --db.engine=pebble \
-                --state.scheme=hash
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
+          # l2-el = {
+          #   command = ''
+          #     ${op-geth} \
+          #       --networkid ${L2_CHAIN_ID} \
+          #       --datadir="$OP_GETH_DIR" \
+          #       --http \
+          #       --http.corsdomain="*" \
+          #       --http.vhosts="*" \
+          #       --http.addr=0.0.0.0 \
+          #       --http.port=${OP_GETH_HTTP_PORT} \
+          #       --http.api=web3,debug,eth,txpool,net,engine \
+          #       --ws \
+          #       --ws.addr=0.0.0.0 \
+          #       --ws.port=${OP_GETH_WS_PORT} \
+          #       --ws.origins="*" \
+          #       --ws.api=admin,debug,eth,txpool,net,engine,web3 \
+          #       --nodiscover \
+          #       --maxpeers=0 \
+          #       --syncmode=full \
+          #       --gcmode=archive \
+          #       --authrpc.vhosts="*" \
+          #       --authrpc.addr=0.0.0.0 \
+          #       --authrpc.port=${OP_GETH_AUTH_PORT} \
+          #       --authrpc.jwtsecret=$L2_JWT \
+          #       --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
+          #       --rollup.disabletxpoolgossip=true \
+          #       --port=${OP_GETH_DISCOVERY_PORT} \
+          #       --db.engine=pebble \
+          #       --state.scheme=hash
+          #   '';
+          #   depends_on."l2-el-init".condition = "process_completed_successfully";
+          # };
 
-          l2-cl-sequencer = {
-            command = ''
-              ${op-node} \
-                --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
-                --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
-                --l1.trustrpc \
-                --l1.rpckind=debug_geth \
-                --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
-                --l2.jwt-secret=$L2_JWT \
-                --l2.enginekind=geth \
-                --rpc.addr=0.0.0.0 \
-                --rpc.port=${OP_NODE_RPC_PORT} \
-                --rpc.enable-admin \
-                --syncmode=consensus-layer \
-                --sequencer.enabled \
-                --sequencer.l1-confs=5 \
-                --verifier.l1-confs=4 \
-                --rollup.config=$OP_ROLLUP_CONFIG \
-                --rollup.load-protocol-versions=true \
-                --p2p.disable
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
+          # l2-cl-sequencer = {
+          #   command = ''
+          #     ${op-node} \
+          #       --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
+          #       --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
+          #       --l1.trustrpc \
+          #       --l1.rpckind=debug_geth \
+          #       --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
+          #       --l2.jwt-secret=$L2_JWT \
+          #       --l2.enginekind=geth \
+          #       --rpc.addr=0.0.0.0 \
+          #       --rpc.port=${OP_NODE_RPC_PORT} \
+          #       --rpc.enable-admin \
+          #       --syncmode=consensus-layer \
+          #       --sequencer.enabled \
+          #       --sequencer.l1-confs=5 \
+          #       --verifier.l1-confs=4 \
+          #       --rollup.config=$OP_ROLLUP_CONFIG \
+          #       --rollup.load-protocol-versions=true \
+          #       --p2p.disable
+          #   '';
+          #   depends_on."l2-el-init".condition = "process_completed_successfully";
+          # };
 
-          l2-cl-batcher = {
-            command = ''
-              ${op-batcher} \
-                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
-                --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --poll-interval=1s \
-                --data-availability-type=blobs \
-                --sub-safety-margin=6 \
-                --num-confirmations=1 \
-                --safe-abort-nonce-too-low-count=3 \
-                --resubmission-timeout=30s \
-                --rpc.addr=0.0.0.0 \
-                --rpc.port=${OP_BATCHER_RPC_PORT} \
-                --rpc.enable-admin \
-                --max-channel-duration=25 \
-                --private-key=${BATCHER.private-key} \
-                --wait-node-sync \
-                --throttle-threshold=0
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
+          # l2-cl-batcher = {
+          #   command = ''
+          #     ${op-batcher} \
+          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
+          #       --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+          #       --poll-interval=1s \
+          #       --data-availability-type=blobs \
+          #       --sub-safety-margin=6 \
+          #       --num-confirmations=1 \
+          #       --safe-abort-nonce-too-low-count=3 \
+          #       --resubmission-timeout=30s \
+          #       --rpc.addr=0.0.0.0 \
+          #       --rpc.port=${OP_BATCHER_RPC_PORT} \
+          #       --rpc.enable-admin \
+          #       --max-channel-duration=25 \
+          #       --private-key=${BATCHER.private-key} \
+          #       --wait-node-sync \
+          #       --throttle-threshold=0
+          #   '';
+          #   depends_on."l2-el-init".condition = "process_completed_successfully";
+          # };
 
-          l2-cl-proposer = {
-            command = ''
-              ${op-proposer} \
-                --poll-interval=12s \
-                --rpc.port=${OP_PROPOSER_RPC_PORT} \
-                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --game-factory-address="$(jq -r ".DisputeGameFactoryImpl" $OP_IMPLEMENTATIONS_CONFIG)" \
-                --game-type 1 \
-                --proposal-interval=60s \
-                --private-key=${PROPOSER.private-key} \
-                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
-          seed-l2 = {
-            command = ''
-              # TODO Sleep here so L2 initialises, improve this
-              sleep 5
-              ${seed-l2} \
-                ${USER_ACCOUNT.private-key} \
-                "http://localhost:${GETH_HTTP_PORT}" \
-                "http://localhost:${OP_GETH_HTTP_PORT}" \
-                "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
-                $(${cast} 2w 1)
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
+          # l2-cl-proposer = {
+          #   command = ''
+          #     ${op-proposer} \
+          #       --poll-interval=12s \
+          #       --rpc.port=${OP_PROPOSER_RPC_PORT} \
+          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+          #       --game-factory-address="$(jq -r ".DisputeGameFactoryImpl" $OP_IMPLEMENTATIONS_CONFIG)" \
+          #       --game-type 1 \
+          #       --proposal-interval=60s \
+          #       --private-key=${PROPOSER.private-key} \
+          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
+          #   '';
+          #   depends_on."l2-el-init".condition = "process_completed_successfully";
+          # };
+          # seed-l2 = {
+          #   command = ''
+          #     # TODO Sleep here so L2 initialises, improve this
+          #     sleep 5
+          #     ${seed-l2} \
+          #       ${USER_ACCOUNT.private-key} \
+          #       "http://localhost:${GETH_HTTP_PORT}" \
+          #       "http://localhost:${OP_GETH_HTTP_PORT}" \
+          #       "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
+          #       $(${cast} 2w 1)
+          #   '';
+          #   depends_on."l2-el-init".condition = "process_completed_successfully";
+          # };
 
-          # misc
-          dora = {
-            command = ''
-              cd "$DORA_DIR"
-              ${dora} -config "$DORA_CONFIG_PATH"
-            '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
-          };
+          # # misc
+          # dora = {
+          #   command = ''
+          #     cd "$DORA_DIR"
+          #     ${dora} -config "$DORA_CONFIG_PATH"
+          #   '';
+          #   depends_on."l1-init-check".condition = "process_completed_successfully";
+          # };
         };
       };
     };

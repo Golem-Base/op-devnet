@@ -11,6 +11,8 @@ _: {
         ssh-to-age
         go-ethereum
         alejandra
+        docker
+
         self'.packages.op-geth-v1_101500_1
         self'.packages.op-node-v1_11_2
         self'.packages.op-batcher-v1_11_4
