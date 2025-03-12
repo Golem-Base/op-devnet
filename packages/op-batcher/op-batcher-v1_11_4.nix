@@ -6,7 +6,7 @@
   ...
 }:
 buildGoModule rec {
-  pname = "op-node";
+  pname = "op-batcher";
   version = "1.11.4";
 
   src = fetchFromGitHub {
@@ -38,6 +38,9 @@ buildGoModule rec {
     homepage = "https://optimism.io/";
     license = with licenses; [mit];
     mainProgram = "op-batcher";
-    platforms = ["x86_64-linux"];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-darwin"
+    ];
   };
 }

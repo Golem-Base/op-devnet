@@ -72,6 +72,5 @@ in
       description = "Optimism is Ethereum, scaled.";
       homepage = "https://optimism.io/";
       license = with licenses; [mit];
-      platforms = ["x86_64-linux"];
     };
   }

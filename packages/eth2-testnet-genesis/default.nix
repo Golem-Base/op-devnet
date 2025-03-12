@@ -29,6 +29,9 @@ buildGoModule rec {
     description = "Create a genesis state for an Eth2 testnet";
     homepage = "https://github.com/protolambda/eth2-testnet-genesis";
     mainProgram = "eth2-testnet-genesis";
-    platforms = ["x86_64-linux"];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-darwin"
+    ];
   };
 }

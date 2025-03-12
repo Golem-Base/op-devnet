@@ -38,6 +38,9 @@ buildGoModule rec {
     homepage = "https://optimism.io/";
     license = with licenses; [mit];
     mainProgram = "op-proposer";
-    platforms = ["x86_64-linux"];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-darwin"
+    ];
   };
 }
