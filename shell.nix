@@ -17,7 +17,6 @@ _: {
         self'.packages.op-proposer-v1_10_0
         self'.packages.prysm
         self'.packages.eth2-testnet-genesis
-        self'.packages.kurtosis
         self'.packages.dora
         self'.packages.op-deployer-v0_2_0_rc1
       ];

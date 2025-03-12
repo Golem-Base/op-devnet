@@ -53,7 +53,7 @@
     },
     "flake-utils_2": {
       "inputs": {
-        "systems": "systems"
+        "systems": "systems_2"
       },
       "locked": {
         "lastModified": 1731533236,
@@ -147,6 +147,41 @@
         "type": "github"
       }
     },
+    "nixpkgs_4": {
+      "locked": {
+        "lastModified": 1739923778,
+        "narHash": "sha256-BqUY8tz0AQ4to2Z4+uaKczh81zsGZSYxjgvtw+fvIfM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "36864ed72f234b9540da4cf7a0c49e351d30d3f1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "op-geth": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_4",
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1741698904,
+        "narHash": "sha256-CKlq6oMqKpvAlynsdMayTnsJkfNVB6JYclDzNohvFXs=",
+        "ref": "refs/heads/v1.101500-base",
+        "rev": "4a2d7ba5be2d22d82da20f43f2795a85ff094bc2",
+        "revCount": 16398,
+        "type": "git",
+        "url": "ssh://git@github.com/Golem-base/op-geth"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/Golem-base/op-geth"
+      }
+    },
     "process-compose": {
       "locked": {
         "lastModified": 1740324671,
@@ -168,6 +203,7 @@
         "flake-parts": "flake-parts",
         "foundry": "foundry",
         "nixpkgs": "nixpkgs_3",
+        "op-geth": "op-geth",
         "process-compose": "process-compose",
         "solc": "solc",
         "treefmt-nix": "treefmt-nix"
@@ -208,6 +244,21 @@
       }
     },
     "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_2": {
       "locked": {
         "lastModified": 1681028828,
         "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",

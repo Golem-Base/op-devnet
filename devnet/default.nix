@@ -23,7 +23,7 @@
 
     # L2
     op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
-    op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
+    op-geth = lib.getExe' inputs.op-geth.packages.${pkgs.system}.default "geth"; #self'.packages.op-geth-v1_101500_1;
     op-node = lib.getExe self'.packages.op-node-v1_11_2;
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 

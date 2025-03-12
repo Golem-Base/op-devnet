@@ -8,11 +8,12 @@ buildPhase() {
 }
 
 installPhase() {
-  mkdir -p "$out"/{include/elf,lib}
+  mkdir -p "$out"/{include/elf,include/mach-o,lib,}
   cp libblst.a "$out"/lib/
   cp bindings/*.{h,hpp} "$out"/include/
   cp build/assembly.S "$out"/include/
   cp build/elf/* "$out"/include/elf/
+  cp build/mach-o/* "$out"/include/mach-o/
   cp src/*.h "$out"/include/
   cp src/*.c "$out"/include/
 }

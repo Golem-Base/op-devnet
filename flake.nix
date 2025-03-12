@@ -15,6 +15,8 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    op-geth.url = "git+ssh://git@github.com/Golem-base/op-geth";
   };
 
   outputs = inputs @ {flake-parts, ...}:
@@ -30,6 +32,9 @@
         ./devnet
       ];
 
-      systems = ["x86_64-linux"];
+      systems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
     };
 }
