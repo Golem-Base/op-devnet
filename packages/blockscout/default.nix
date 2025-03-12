@@ -46,7 +46,7 @@
       };
 
       prometheus_ex = beamPackages.buildMix rec {
-        name = "prometeus_ex";
+        name = "prometheus_ex";
         version = "3.1.0";
         src = beamPackages.fetchHex {
           pkg = "prometheus_ex";
