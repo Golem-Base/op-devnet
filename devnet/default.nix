@@ -192,7 +192,7 @@
                 --authrpc.port=${GETH_AUTH_PORT} \
                 --authrpc.jwtsecret=$L1_JWT \
                 --datadir "$EXECUTION_DIR" \
-                --syncmode 'full' \
+                --syncmode=full \
                 --nodiscover \
                 --maxpeers 0 \
                 --verbosity 5 \
@@ -298,11 +298,11 @@
                 --http \
                 --http.corsdomain="*" \
                 --http.vhosts="*" \
-                --http.addr=0.0.0.0 \
+                --http.addr=127.0.0.1 \
                 --http.port=${OP_GETH_HTTP_PORT} \
                 --http.api=web3,debug,eth,txpool,net,engine \
                 --ws \
-                --ws.addr=0.0.0.0 \
+                --ws.addr=127.0.0.1 \
                 --ws.port=${OP_GETH_WS_PORT} \
                 --ws.origins="*" \
                 --ws.api=admin,debug,eth,txpool,net,engine,web3 \
@@ -311,10 +311,9 @@
                 --syncmode=full \
                 --gcmode=archive \
                 --authrpc.vhosts="*" \
-                --authrpc.addr=0.0.0.0 \
+                --authrpc.addr=127.0.0.1 \
                 --authrpc.port=${OP_GETH_AUTH_PORT} \
                 --authrpc.jwtsecret=$L2_JWT \
-                --rollup.sequencerhttp=http://0.0.0.0:${OP_NODE_RPC_PORT} \
                 --rollup.disabletxpoolgossip=true \
                 --port=${OP_GETH_DISCOVERY_PORT} \
                 --db.engine=pebble \
@@ -333,7 +332,7 @@
                 --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
                 --l2.jwt-secret=$L2_JWT \
                 --l2.enginekind=geth \
-                --rpc.addr=0.0.0.0 \
+                --rpc.addr=127.0.0.1 \
                 --rpc.port=${OP_NODE_RPC_PORT} \
                 --rpc.enable-admin \
                 --syncmode=consensus-layer \
@@ -359,7 +358,7 @@
                 --num-confirmations=1 \
                 --safe-abort-nonce-too-low-count=3 \
                 --resubmission-timeout=30s \
-                --rpc.addr=0.0.0.0 \
+                --rpc.addr=127.0.0.1 \
                 --rpc.port=${OP_BATCHER_RPC_PORT} \
                 --rpc.enable-admin \
                 --max-channel-duration=25 \
@@ -393,7 +392,7 @@
                 "http://localhost:${GETH_HTTP_PORT}" \
                 "http://localhost:${OP_GETH_HTTP_PORT}" \
                 "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
-                $(${cast} 2w 1)
+                $(${cast} 2w 5)
             '';
             depends_on."l2-el-init".condition = "process_completed_successfully";
           };

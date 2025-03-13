@@ -5,7 +5,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devshell.url = "github:numtide/devshell";
-    foundry.url = "github:shazow/foundry.nix/monthly"; # Use monthly branch for permanent releases
+    foundry.url = "github:shazow/foundry.nix/monthly";
     solc = {
       url = "github:hellwolf/solc.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -31,5 +31,14 @@
       ];
 
       systems = ["x86_64-linux"];
+      perSystem = {system, ...}: {
+        _module.args.pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [
+            inputs.foundry.overlay
+            inputs.solc.overlay
+          ];
+        };
+      };
     };
 }
