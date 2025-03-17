@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Golem-Base/op.nix/go/cmd"
+	"github.com/Golem-Base/op.nix/op-nix/cmd"
 	"github.com/urfave/cli/v2"
 )
 
