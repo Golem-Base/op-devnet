@@ -21,6 +21,11 @@
         self'.packages.dora
         inputs.withdrawer.packages.${system}.default
         self'.packages.op-deployer-v0_2_0_rc1
+
+        go
+        go-tools
+        gopls
+        gotools
       ];
 
       shellHook = ''
