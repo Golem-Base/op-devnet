@@ -1,4 +1,4 @@
-_: {
+{inputs, ...}: {
   perSystem = {
     self',
     pkgs,
@@ -19,6 +19,7 @@ _: {
         self'.packages.eth2-testnet-genesis
         self'.packages.kurtosis
         self'.packages.dora
+        inputs.withdrawer.packages.${system}.default
         self'.packages.op-deployer-v0_2_0_rc1
       ];
 

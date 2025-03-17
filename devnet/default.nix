@@ -6,8 +6,6 @@
     lib,
     ...
   }: let
-    configs = pkgs.callPackage ./configs {};
-    scripts = pkgs.callPackage ./scripts {};
     inherit (import ./accounts.nix) accounts;
 
     # utils
@@ -28,7 +26,10 @@
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
     deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
+    withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
+    configs = pkgs.callPackage ./configs {};
+    scripts = pkgs.callPackage ./scripts {inherit withdrawer;};
     # scripts
     check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
     seed-l1 = "${scripts.seed-l1}/bin/seed-l1";
@@ -129,6 +130,7 @@
         OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
         OP_L1_ADDRESSES_FILE="$OP_DEPLOYER_DIR/l1_addresses.json"
         OP_IMPLEMENTATIONS_CONFIG="$OP_DEPLOYER_DIR/implementations.json"
+        OP_STATE_CONFIG="$OP_DEPLOYER_DIR/state.json"
         OP_ROLLUP_CONFIG="$OP_DEPLOYER_DIR/rollup.json"
         OP_GETH_DIR="$OP_DIR/op-geth"
 
@@ -145,6 +147,7 @@
         export OP_ROLLUP_CONFIG
         export OP_GETH_DIR
         export OP_IMPLEMENTATIONS_CONFIG
+        export OP_STATE_CONFIG
         export OP_L1_ADDRESSES_FILE
       '';
 
@@ -361,23 +364,26 @@
                 --rpc.addr=127.0.0.1 \
                 --rpc.port=${OP_BATCHER_RPC_PORT} \
                 --rpc.enable-admin \
-                --max-channel-duration=25 \
+                --max-channel-duration=5 \
                 --private-key=${BATCHER.private-key} \
                 --wait-node-sync \
                 --throttle-threshold=0
             '';
             depends_on."l2-el-init".condition = "process_completed_successfully";
           };
-
           l2-cl-proposer = {
+            # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
+            # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false, it waits until those
+            # blocks are finalized, before making proposals to them
             command = ''
               ${op-proposer} \
+                --allow-non-finalized=true \
                 --poll-interval=12s \
                 --rpc.port=${OP_PROPOSER_RPC_PORT} \
                 --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --game-factory-address="$(jq -r ".DisputeGameFactoryImpl" $OP_IMPLEMENTATIONS_CONFIG)" \
+                --game-factory-address="$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
                 --game-type 1 \
-                --proposal-interval=60s \
+                --proposal-interval=10s \
                 --private-key=${PROPOSER.private-key} \
                 --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
             '';
@@ -391,8 +397,12 @@
                 ${USER_ACCOUNT.private-key} \
                 "http://localhost:${GETH_HTTP_PORT}" \
                 "http://localhost:${OP_GETH_HTTP_PORT}" \
+                "http://localhost:${OP_NODE_RPC_PORT}" \
                 "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
-                $(${cast} 2w 5)
+                "$(jq -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG)" \
+                "$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
+                $(${cast} 2w 5) \
+                $(${cast} 2w 1)
             '';
             depends_on."l2-el-init".condition = "process_completed_successfully";
           };

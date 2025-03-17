@@ -6,6 +6,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devshell.url = "github:numtide/devshell";
     foundry.url = "github:shazow/foundry.nix/monthly";
+    withdrawer.url = "git+ssh://git@github.com/Golem-Base/withdrawer";
+
     solc = {
       url = "github:hellwolf/solc.nix";
       inputs.nixpkgs.follows = "nixpkgs";
