@@ -24,5 +24,6 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		slog.Error("Error", app.Name, err)
+		os.Exit(1)
 	}
 }

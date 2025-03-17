@@ -25,6 +25,8 @@
     op-node = lib.getExe self'.packages.op-node-v1_11_2;
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
+    op-nix = lib.getExe self'.packages.op-nix;
+
     deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
     withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
@@ -244,15 +246,11 @@
           };
           l1-init-check = {
             command = ''
-              ${check-l1-ready} 20 "http://localhost:${GETH_HTTP_PORT}"
+              ${op-nix} checkL1 \
+                --private-key ${DEPLOYER_ACCOUNT.private-key} \
+                --amount 1
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
-          };
-          seed-l1 = {
-            command = ''
-              ${seed-l1} ${SEEDER_ACCOUNT.private-key} "http://localhost:${GETH_HTTP_PORT}"
-            '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
           };
 
           # L2
@@ -280,7 +278,7 @@
                 --sequencer ${SEQUENCER.address} \
                 --proposer ${PROPOSER.address}
             '';
-            depends_on."seed-l1".condition = "process_completed_successfully";
+            depends_on."l1-init-check".condition = "process_completed_successfully";
           };
 
           l2-el-init = {
