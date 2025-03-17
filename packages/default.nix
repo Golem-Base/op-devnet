@@ -22,7 +22,7 @@ _: {
 
       op-config = import ./op-config {inherit pkgs;};
 
-      op-nix = callPackage ./op-nix {};
+      op-nix = callPackage ../op-nix {};
 
       deploy-optimism = callPackage ./deploy-optimism {op-deployer = op-deployer-v0_2_0_rc1;};
 

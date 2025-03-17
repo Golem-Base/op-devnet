@@ -32,9 +32,8 @@
 
     configs = pkgs.callPackage ./configs {};
     scripts = pkgs.callPackage ./scripts {inherit withdrawer;};
+
     # scripts
-    check-l1-ready = "${scripts.check-l1-ready}/bin/check-l1-ready";
-    seed-l1 = "${scripts.seed-l1}/bin/seed-l1";
     seed-l2 = "${scripts.seed-l2}/bin/seed-l2";
     # op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
 
@@ -247,7 +246,7 @@
           l1-init-check = {
             command = ''
               ${op-nix} checkL1 \
-                --private-key ${DEPLOYER_ACCOUNT.private-key} \
+                --private-key ${SEEDER_ACCOUNT.private-key} \
                 --amount 1
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
