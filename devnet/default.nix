@@ -25,16 +25,13 @@
     op-node = lib.getExe self'.packages.op-node-v1_11_2;
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
-    op-nix = lib.getExe self'.packages.op-nix;
+    probe = lib.getExe self'.packages.probe;
 
     deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
-    withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
+    # withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
     configs = pkgs.callPackage ./configs {};
-    scripts = pkgs.callPackage ./scripts {inherit withdrawer;};
 
-    # scripts
-    seed-l2 = "${scripts.seed-l2}/bin/seed-l2";
     # op-deployer-init = "${scripts.op-deployer-init}/bin/op-deployer-init";
 
     # explorers
@@ -103,7 +100,10 @@
       cli.options.port = 5656;
       # We always create a tmp working directory
       cli.preHook = ''
+        PROJECT_DIR="$PWD"
         cd "$(mktemp -d)"
+
+        ln -s "$PWD" "$PROJECT_DIR/.devnet"
 
         EXECUTION_DIR="$PWD/execution"
         CONSENSUS_DIR="$PWD/consensus"
@@ -150,6 +150,10 @@
         export OP_IMPLEMENTATIONS_CONFIG
         export OP_STATE_CONFIG
         export OP_L1_ADDRESSES_FILE
+      '';
+      cli.postHook = ''
+        # Remove symlink
+        rm -rf "$PROJECT_DIR/.devnet"
       '';
 
       settings = {
@@ -243,9 +247,10 @@
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
           };
-          l1-init-check = {
+          l1-check = {
             command = ''
-              ${op-nix} checkL1 \
+              ${probe} sendOnReady \
+                --rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
                 --private-key ${SEEDER_ACCOUNT.private-key} \
                 --amount 1
             '';
@@ -253,7 +258,7 @@
           };
 
           # L2
-          l2-init = {
+          l2-deploy = {
             command = ''
               ${deploy-optimism} \
                 --rpc-url ${GETH_HTTP_PORT} \
@@ -277,17 +282,17 @@
                 --sequencer ${SEQUENCER.address} \
                 --proposer ${PROPOSER.address}
             '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
+            depends_on."l1-check".condition = "process_completed_successfully";
           };
 
-          l2-el-init = {
+          l2-init = {
             command = ''
               ${op-geth} init \
                 --state.scheme=hash \
                 --datadir "$OP_GETH_DIR" \
                 $OP_GENESIS_CONFIG
             '';
-            depends_on."l2-init".condition = "process_completed_successfully";
+            depends_on."l2-deploy".condition = "process_completed_successfully";
           };
 
           l2-el = {
@@ -319,7 +324,7 @@
                 --db.engine=pebble \
                 --state.scheme=hash
             '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
+            depends_on."l2-init".condition = "process_completed_successfully";
           };
 
           l2-cl-sequencer = {
@@ -343,7 +348,7 @@
                 --rollup.load-protocol-versions=true \
                 --p2p.disable
             '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
+            depends_on."l2-init".condition = "process_completed_successfully";
           };
 
           l2-cl-batcher = {
@@ -366,7 +371,7 @@
                 --wait-node-sync \
                 --throttle-threshold=0
             '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
+            depends_on."l2-init".condition = "process_completed_successfully";
           };
           l2-cl-proposer = {
             # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
@@ -384,25 +389,34 @@
                 --private-key=${PROPOSER.private-key} \
                 --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
             '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
+            depends_on."l2-init".condition = "process_completed_successfully";
           };
-          seed-l2 = {
-            command = ''
-              # TODO Sleep here so L2 initialises, improve this
-              sleep 5
-              ${seed-l2} \
-                ${USER_ACCOUNT.private-key} \
-                "http://localhost:${GETH_HTTP_PORT}" \
-                "http://localhost:${OP_GETH_HTTP_PORT}" \
-                "http://localhost:${OP_NODE_RPC_PORT}" \
-                "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
-                "$(jq -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG)" \
-                "$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
-                $(${cast} 2w 5) \
-                $(${cast} 2w 1)
-            '';
-            depends_on."l2-el-init".condition = "process_completed_successfully";
-          };
+          # l2-check = {
+          #   command = ''
+          #     L1_STANDARD_BRIDGE_PROXY_ADDRESS=$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)
+          #     L2_STANDARD_BRIDGE_ADDRESS=0x4200000000000000000000000000000000000010
+          #     ${check} l2 \
+          #       --private-key=${USER_ACCOUNT.private-key} \
+          #       --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
+          #       --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+          #       --l1-standard-bridge-proxy-address=$L1_STANDARD_BRIDGE_PROXY_ADDRESS \
+          #       --l2-standard-bridge-address=$L2_STANDARD_BRIDGE_ADDRESS \
+          #       --deposit-amount=$(${cast} 2w 5)
+
+          #     # TODO Sleep here so L2 initialises, improve this
+          #     # sleep 5
+          #     #   ${USER_ACCOUNT.private-key} \
+          #     #   "http://localhost:${GETH_HTTP_PORT}" \
+          #     #   "http://localhost:${OP_GETH_HTTP_PORT}" \
+          #     #   "http://localhost:${OP_NODE_RPC_PORT}" \
+          #     #   "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
+          #     #   "$(jq -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG)" \
+          #     #   "$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
+          #     #   $(${cast} 2w 5) \
+          #     #   $(${cast} 2w 1)
+          #   '';
+          #   depends_on."l2-init".condition = "process_completed_successfully";
+          # };
 
           # misc
           dora = {
@@ -410,7 +424,7 @@
               cd "$DORA_DIR"
               ${dora} -config "$DORA_CONFIG_PATH"
             '';
-            depends_on."l1-init-check".condition = "process_completed_successfully";
+            depends_on."l1-check".condition = "process_completed_successfully";
           };
         };
       };
