@@ -1,0 +1,17 @@
+diff --git a/py_src/gen2.py b/py_src/gen2.py
+index 2a33cb1..525e19f 100755
+--- a/py_src/gen2.py
++++ b/py_src/gen2.py
+@@ -806,10 +806,8 @@ if __name__ == "__main__":
+     if len(args.modules) > 0:
+         enabled_modules = args.modules.split(",")
+     generator = BeamWrapperGenerator(enabled_modules, lang, args.win_dll)
+-    rmtree(elixir_dstdir)
+-    rmtree(erlang_dstdir)
+-    makedirs(elixir_dstdir)
+-    makedirs(erlang_dstdir)
++    makedirs(elixir_dstdir, exist_ok=True)
++    makedirs(erlang_dstdir, exist_ok=True)
+     generator.gen(srcfiles, dstdir, elixir_dstdir, erlang_dstdir)
+     # for n in generator.namespaces:
+     #     print(f'"{n}": &(&1[:namespace] == :"{n}"),')
