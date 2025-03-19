@@ -1,0 +1,27 @@
+diff --git a/lib/prometheus/phoenix_instrumenter.ex b/lib/prometheus/phoenix_instrumenter.ex
+index original..patched 100644
+--- a/lib/prometheus/phoenix_instrumenter.ex
++++ b/lib/prometheus/phoenix_instrumenter.ex
+@@ -124,7 +124,6 @@ defmodule Prometheus.PhoenixInstrumenter do
+   Predefined compile metadata labels are added at compile time.
+   """
+
+-  import Phoenix.Controller
+   require Logger
+   require Prometheus.Contrib.HTTP
+   alias Prometheus.Contrib.HTTP
+@@ -194,11 +193,11 @@ defmodule Prometheus.PhoenixInstrumenter do
+   ## controller labels
+   defp label_value(:action, :conn) do
+     quote do
+-      action_name(conn)
++      Phoenix.Controller.action_name(conn)
+     end
+   end
+
+   defp label_value(:controller, :conn) do
+     quote do
+-      inspect(controller_module(conn))
++      inspect(Phoenix.Controller.controller_module(conn))
+     end
+   end
