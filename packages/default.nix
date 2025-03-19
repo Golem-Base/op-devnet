@@ -9,6 +9,7 @@ _: {
       kurtosis = callPackage ./kurtosis {};
       dora = callPackage ./dora {};
 
+      bs = callPackage ./bs {};
       blockscout = callPackage ./blockscout {};
 
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
