@@ -9,6 +9,7 @@ _: {
       kurtosis = callPackage ./kurtosis {};
       dora = callPackage ./dora {};
 
+      evisionnif = callPackage ./bs/evisionnif.nix {};
       bs = callPackage ./bs {};
       blockscout = callPackage ./blockscout {};
 

@@ -3,19 +3,19 @@
   lib,
   fetchFromGitHub,
   rustPlatform,
-  pkgs,
   ...
 }: let
   pname = "bs";
   version = "7.0.2";
 
+  buildMix = lib.makeOverridable beamPackages.buildMix;
   beamPackages = beam.packagesWith beam.interpreters.erlang_26;
 
   src = fetchFromGitHub {
-    owner = "blockscout";
+    owner = "aldoborrero";
     repo = "blockscout";
-    rev = "v${version}";
-    hash = "sha256-cfAd58l+gJ9dY/XFYnnQorHLNAiXn//gi+iY17iWcsc=";
+    rev = "v${version}-nix";
+    hash = "sha256-vNTQVIRDFwXH30MFI12g+Ge1oVxyd0Fk1gBMJRyaiNI=";
   };
 
   secp256k1Nif = rustPlatform.buildRustPackage {
@@ -79,65 +79,62 @@
   };
 
   # evisionNif = let
-  #   opencv4 = pkgs.opencv4.overrideAttrs (oldAttrs: {
-  #     postInstall = ''
-  #       ${oldAttrs.postInstall or ""}
-  #       # Copy the generated headers.txt to a predictable location
-  #       cp modules/python_bindings_generator/headers.txt $out/share/opencv4/headers.txt
-  #     '';
-  #   });
-  #   opencv_version = lib.versions.majorMinor pkgs.opencv4.version;
+  #   opencv = callPackage ./opencv.nix {};
   #   python = pkgs.python3.withPackages (ps: with ps; [setuptools]);
-  # in pkgs.stdenv.mkDerivation rec {
-  #   pname = "evision";
-  #   version = "0.1.31";
-  #   src = fetchFromGitHub {
-  #     owner = "cocoa-xu";
-  #     repo = "evision";
-  #     rev = "v${version}";
-  #     hash = "sha256-+YRlzRam8yKLBLNAJc8b5d3d4JVIZhPt7KssHIhwU0M=";
+  # in
+  #   pkgs.stdenv.mkDerivation rec {
+  #     pname = "evision";
+  #     version = "0.1.31";
+
+  #     src = fetchFromGitHub {
+  #       owner = "cocoa-xu";
+  #       repo = "evision";
+  #       rev = "v${version}";
+  #       hash = "sha256-+YRlzRam8yKLBLNAJc8b5d3d4JVIZhPt7KssHIhwU0M=";
+  #     };
+
+  #     nativeBuildInputs = [
+  #       pkgs.cmake
+  #       pkgs.pkg-config
+  #       python
+  #     ];
+
+  #     buildInputs = [
+  #       opencv
+  #       beam.interpreters.erlang_26
+  #     ];
+
+  #     preConfigure = ''
+  #       # Copy OpenCV headers to match the expected structure
+  #       mkdir -p $NIX_BUILD_TOP/source/modules
+  #       cp -r ${opencv}/include/opencv4/* $NIX_BUILD_TOP/source/modules/
+  #       # Copy headers.txt to the expected location
+  #       cp ${opencv}/share/opencv4/headers.txt $NIX_BUILD_TOP/source/c_src/headers.txt
+  #     '';
+
+  #     cmakeFlags = [
+  #       "-DCMAKE_BUILD_TYPE=Release"
+  #       "-DOpenCV_DIR=${opencv}/lib/cmake/opencv4"
+  #       "-DPRIV_DIR=${placeholder "out"}/priv"
+  #       "-DC_SRC=$NIX_BUILD_TOP/source/c_src"
+  #       "-DPY_SRC=$NIX_BUILD_TOP/source/py_src"
+  #       "-DERTS_INCLUDE_DIR=${beam.interpreters.erlang_26}/lib/erlang/usr/include"
+  #       "-DEVISION_GENERATE_LANG=elixir"
+  #       (lib.cmakeBool "EVISION_ENABLE_CONTRIB" true)
+  #       (lib.cmakeBool "EVISION_PREFER_PRECOMPILED" false)
+  #     ];
+
+  #     enableParallelBuilding = true;
+
+  #     installPhase = ''
+  #       runHook preInstall
+  #       mkdir -p $out/priv/native
+  #       mkdir -p $out/priv/lib
+  #       cp evision.so $out/priv/native/libevision-v${version}-nif-2.16-x86_64-unknown-linux-gnu.so
+  #       cp evision.so $out/priv/lib/evision.so
+  #       runHook postInstall
+  #     '';
   #   };
-  #   patches = [
-  #     ./001-evision-gen2-dont-remove-dirs.patch
-  #   ];
-  #   nativeBuildInputs = [
-  #     pkgs.cmake
-  #     pkgs.pkg-config
-  #     python
-  #   ];
-  #   buildInputs = [
-  #     opencv4
-  #     beam.interpreters.erlang_26
-  #   ];
-  #   preConfigure = ''
-  #     # Copy OpenCV headers to match the expected structure
-  #     mkdir -p $NIX_BUILD_TOP/source/modules
-  #     cp -r ${opencv4}/include/opencv4/* $NIX_BUILD_TOP/source/modules/
-  #     # Copy headers.txt to the expected location
-  #     cp ${opencv4}/share/opencv4/headers.txt $NIX_BUILD_TOP/source/c_src/headers.txt
-  #   '';
-  #   cmakeFlags = [
-  #     "-DCMAKE_BUILD_TYPE=Release"
-  #     "-DOpenCV_DIR=${opencv4}/lib/cmake/opencv4"
-  #     "-DPRIV_DIR=${placeholder "out"}/priv"
-  #     "-DC_SRC=$NIX_BUILD_TOP/source/c_src"
-  #     "-DPY_SRC=$NIX_BUILD_TOP/source/py_src"
-  #     "-DERTS_INCLUDE_DIR=${beam.interpreters.erlang_26}/lib/erlang/usr/include"
-  #     "-DEVISION_GENERATE_LANG=elixir"
-  #     (lib.cmakeBool "EVISION_ENABLE_CONTRIB" false)
-  #     (lib.cmakeBool "EVISION_PREFER_PRECOMPILED" false)
-  #   ];
-  #   enableParallelBuilding = true;
-  #   installPhase = ''
-  #     runHook preInstall
-  #     mkdir -p $out/priv/native
-  #     mkdir -p $out/priv/lib
-  #     # Copy the NIF with standard naming and in both locations that might be expected
-  #     cp evision.so $out/priv/native/libevision-v${version}-nif-2.16-x86_64-unknown-linux-gnu.so
-  #     cp evision.so $out/priv/lib/evision.so
-  #     runHook postInstall
-  #   '';
-  # };
 
   mixNixDeps = import ./mix_deps.nix {
     inherit lib beamPackages;
@@ -153,6 +150,53 @@
         beamDeps = with final; [castore];
         patches = [./002_mix_rustler_skip_download.patch];
       };
+
+      # ex_keccak = let
+      #   drv = buildMix rec {
+      #     name = "ex_keccak";
+      #     version = "0.7.6";
+      #     src = beamPackages.fetchHex {
+      #       pkg = "ex_keccak";
+      #       version = "0.7.6";
+      #       sha256 = "9d1568424eb7b995e480d1b7f0c1e914226ee625496600abb922bba6f5cdc5e4";
+      #     };
+      #     beamDeps = with final; [rustler_precompiled];
+      #     preBuild = ''
+      #       mkdir -p config
+      #       echo 'import Config' > config/prod.exs
+      #       echo "config :ex_keccak, ExKeccak, skip_compilation?: true" >> config/prod.exs
+      #     '';
+      #   };
+      # in
+      #   drv.override (workarounds.rustlerPrecompiled {} drv);
+
+      # ex_brotli = let
+      #   drv = buildMix rec {
+      #     name = "ex_brotli";
+      #     version = "0.5.0";
+      #     src = beamPackages.fetchHex {
+      #       pkg = "ex_brotli";
+      #       version = "${version}";
+      #       sha256 = "8447d98d51f8f312629fd38619d4f564507dcf3a03d175c3f8f4ddf98e46dd92";
+      #     };
+      #     beamDeps = with final; [phoenix rustler_precompiled];
+      #   };
+      # in
+      #   drv.override (workarounds.rustlerPrecompiled {} drv);
+
+      # ex_secp256k1 = let
+      #   drv = buildMix rec {
+      #     name = "ex_secp256k1";
+      #     version = "0.7.4";
+      #     src = beamPackages.fetchHex {
+      #       pkg = "ex_secp256k1";
+      #       version = "${version}";
+      #       sha256 = "465fd788c83c24d2df47f302e8fb1011054c81a905345e377c957b159a783bfc";
+      #     };
+      #     beamDeps = with final; [rustler_precompiled];
+      #   };
+      # in
+      #   drv.override (workarounds.rustlerPrecompiled {} drv);
 
       ex_keccak = beamPackages.buildMix rec {
         name = "ex_keccak";
@@ -342,6 +386,27 @@
         '';
       };
 
+      # siwe = let
+      #   drv = buildMix rec {
+      #     name = "siwe";
+      #     version = "0.1.0";
+      #     src = fetchFromGitHub {
+      #       owner = "royal-markets";
+      #       repo = "siwe-ex";
+      #       rev = "51c9c08240eb7eea3c35693011f8d260cd9bb3be";
+      #       hash = "sha256-ltxJSmHAfz2oJBGYt/kPa6pOHu40TxsFZ0KtstD+5U0=";
+      #     };
+      #     beamDeps = with final; [
+      #       ex_abi
+      #       ex_rlp
+      #       ex_secp256k1
+      #       jason
+      #       rustler_precompiled
+      #     ];
+      #   };
+      # in
+      #   drv.override (workarounds.rustlerPrecompiled {} drv);
+
       siwe = beamPackages.buildMix rec {
         name = "siwe";
         version = "0.1.0";
@@ -374,53 +439,16 @@
         '';
       };
 
-      vix = beamPackages.buildMix rec {
-        name = "vix";
-        version = "0.33.0";
-        src = beamPackages.fetchHex {
-          pkg = "vix";
-          version = "${version}";
-          sha256 = "9acde72b27bdfeadeb51f790f7a6cc0d06cf555718c05cf57e43c5cf93d8471b";
+      briefly = beamPackages.buildMix rec {
+        name = "briefly";
+        version = "0.4.1";
+        src = fetchFromGitHub {
+          owner = "CargoSense";
+          repo = "briefly";
+          rev = "a533393826195e640f24089fca751826858ebe53";
+          hash = "sha256-Hm8zPvWeUqXaV/axEmffA9UJTxCskvF3JqUZG1PJze4=";
         };
-        beamDeps = with final; [castore cc_precompiler elixir_make];
-        env = {
-          ELIXIR_MAKE_CACHE_DIR = "unused-but-required";
-          ELIXIR_MAKE_CACHE_DISABLED = "1";
-        };
-      };
-
-      evision = beamPackages.buildMix rec {
-        name = "evision";
-        version = "0.1.31";
-        src = beamPackages.fetchHex {
-          pkg = "evision";
-          version = "${version}";
-          sha256 = "5a1a3902b3b8f8dd9104401faae17c3ee097b1afaed8df31ce53c4f0f57bd32a"; # Verify this hash
-        };
-        beamDeps = with final; [castore elixir_make nx];
-        env = {
-          EVISION_PREFER_PRECOMPILED = "false";
-          EVISION_CACHE_DIR = "./.cache";
-        };
-        # preBuild = ''
-        #   # Create cache dir to avoid errors
-        #   mkdir -p .cache
-
-        #   # Create expected directory structure
-        #   mkdir -p _build/prod/lib/evision/priv/native
-        #   mkdir -p priv/native
-
-        #   # Link the NIF file with both the exact name expected and standard location
-        #   for lib in ${evisionNif}/priv/native/*
-        #   do
-        #     cp "$lib" _build/prod/lib/evision/priv/native/
-        #     ln -s "$lib" priv/native/
-        #   done
-
-        #   # Also link the library version if needed
-        #   mkdir -p priv/lib
-        #   ln -s ${evisionNif}/priv/lib/evision.so priv/lib/
-        # '';
+        beamDeps = [];
       };
     };
   };
