@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/google/uuid"
 )
 
 type Bridger struct {
@@ -70,6 +69,12 @@ func NewBridger(
 	l2Client, err := ethclient.Dial(l2RpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("could not dial l2 rpc at %s: %w", l2RpcUrl, err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := WaitForChainsStart(timeoutCtx, []*ethclient.Client{l1Client, l2Client}); err != nil {
+		return nil, fmt.Errorf("one of the clients has not started: %w", err)
 	}
 
 	l1ChainId, err := l1Client.ChainID(ctx)
@@ -180,17 +185,6 @@ func NewBridger(
 }
 
 func (b *Bridger) BridgeETHFromL1ToL2(ctx context.Context, privateKey *ecdsa.PrivateKey, value *big.Int) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	if err := WaitForChainsStart(timeoutCtx, []*ethclient.Client{b.l1Client, b.l2Client}); err != nil {
-		return fmt.Errorf("one of the clients did not start: %w", err)
-	}
-
-	extraData, err := uuid.New().MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("could not create uuid for deposit identification")
-	}
-
 	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, b.l1ChainId)
 	if err != nil {
 		return fmt.Errorf("could not setup transactor: %w", err)
@@ -198,7 +192,7 @@ func (b *Bridger) BridgeETHFromL1ToL2(ctx context.Context, privateKey *ecdsa.Pri
 	opts.Value = value
 
 	tx, err := transactions.PadGasEstimate(opts, 1.5, func(opts *bind.TransactOpts) (*types.Transaction, error) {
-		return b.l1StandardBridge.BridgeETH(opts, DEFAULT_RECEIVE_DEFAULT_GAS_LIMIT, extraData)
+		return b.l1StandardBridge.BridgeETH(opts, DEFAULT_RECEIVE_DEFAULT_GAS_LIMIT, []byte{})
 	})
 	if err != nil {
 		return fmt.Errorf("could not construct calldata for DepositETH: %w", err)

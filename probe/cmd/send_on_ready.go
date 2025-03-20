@@ -55,7 +55,7 @@ var SendOnReadyCommand = &cli.Command{
 			return fmt.Errorf("failed to parse private-key: %w", err)
 		}
 
-		timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
 		if err := bridge.WaitForChainsStart(timeoutCtx, []*ethclient.Client{client}); err != nil {
 			return fmt.Errorf("Chain did not start: %w", err)

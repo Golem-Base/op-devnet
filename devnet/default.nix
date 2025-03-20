@@ -11,7 +11,7 @@
     # utils
     openssl = lib.getExe pkgs.openssl;
     jq = lib.getExe pkgs.jq;
-    cast = "${pkgs.foundry}/bin/cast";
+    # cast = "${pkgs.foundry}/bin/cast";
 
     #L1
     geth = lib.getExe pkgs.go-ethereum;
@@ -387,7 +387,7 @@
                 --poll-interval=12s \
                 --rpc.port=${OP_PROPOSER_RPC_PORT} \
                 --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-                --game-factory-address="$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
+                --game-factory-address="$(${jq} -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
                 --game-type 1 \
                 --proposal-interval=10s \
                 --private-key=${PROPOSER.private-key} \
@@ -395,21 +395,19 @@
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
           };
-          # l2-check = {
-          #   command = ''
-          #     L1_STANDARD_BRIDGE_ADDRESS=$(jq -r ".opChainDeployment.[0].l1StandardBridgeProxyAddress" $OP_STATE_CONFIG)
-          #     L2_STANDARD_BRIDGE_ADDRESS=0x4200000000000000000000000000000000000010
-          #     echo "L1 Bridge Address: $L1_STANDARD_BRIDGE_ADDRESS"
-          #     ${probe} bridgeEthAndFinalize \
-          #       --private-key=${USER_ACCOUNT.private-key} \
-          #       --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-          #       --l1-standard-bridge-address=$L1_STANDARD_BRIDGE_ADDRESS \
-          #       --l2-standard-bridge-address=$L2_STANDARD_BRIDGE_ADDRESS \
-          #       --value=$(cast 2w 10)
-          #   '';
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
+          l2-check = {
+            command = ''
+              ${probe} bridgeEthAndFinalize \
+                --private-key=${USER_ACCOUNT.private-key} \
+                --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+                --optimism-portal-address=$(${jq} -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG) \
+                --l1-standard-bridge-address=$(${jq} -r ".opChainDeployments.[0].l1StandardBridgeProxyAddress" $OP_STATE_CONFIG) \
+                --l2-standard-bridge-address="0x4200000000000000000000000000000000000010" \
+                --value=$(cast 2w 10000)
+            '';
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
 
           # misc
           dora = {

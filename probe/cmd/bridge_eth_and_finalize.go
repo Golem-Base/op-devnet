@@ -73,6 +73,9 @@ var BridgeEthAndFinalizeCommand = &cli.Command{
 			c.String("l1-standard-bridge-address"),
 			c.String("l2-standard-bridge-address"),
 		)
+		if err != nil {
+			return fmt.Errorf("failed to create new bridger: %w", err)
+		}
 
 		if err = bridger.BridgeETHFromL1ToL2(ctx, privateKey, value); err != nil {
 			return fmt.Errorf("failed to bridge ETH from L1 to L2: %w", err)
