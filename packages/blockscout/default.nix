@@ -1,27 +1,196 @@
 {
-  pkgs,
   beam,
   lib,
   fetchFromGitHub,
+  rustPlatform,
   ...
 }: let
-  beamPackages = beam.packagesWith beam.interpreters.erlang_26;
-
   pname = "blockscout";
-
   version = "7.0.2";
 
+  buildMix = lib.makeOverridable beamPackages.buildMix;
+  beamPackages = beam.packagesWith beam.interpreters.erlang_26;
+
   src = fetchFromGitHub {
-    owner = "blockscout";
+    owner = "aldoborrero";
     repo = "blockscout";
-    rev = "v${version}";
-    hash = "sha256-cfAd58l+gJ9dY/XFYnnQorHLNAiXn//gi+iY17iWcsc=";
+    rev = "v${version}-nix";
+    hash = "sha256-vNTQVIRDFwXH30MFI12g+Ge1oVxyd0Fk1gBMJRyaiNI=";
+  };
+
+  secp256k1Nif = rustPlatform.buildRustPackage {
+    pname = "ex_secp256k1";
+    version = "0.7.4";
+    src = fetchFromGitHub {
+      owner = "ayrat555";
+      repo = "ex_secp256k1";
+      rev = "v0.7.4";
+      hash = "sha256-BvrAu0t5XLMS4h+uZRPbH/S6HrLB9WOnkEm1D/x1j3w=";
+    };
+    sourceRoot = "source/native/ex_secp256k1";
+    cargoHash = "sha256-opH2UZU+OKzOBXW0bPBoKr0wq+vSwM4n6Wc2+0tshr0=";
+    useFetchCargoVendor = true;
+    doCheck = false;
+  };
+
+  keccakNif = rustPlatform.buildRustPackage {
+    pname = "ex_keccak";
+    version = "0.7.6";
+    src = fetchFromGitHub {
+      owner = "ExWeb3";
+      repo = "ex_keccak";
+      rev = "v0.7.6";
+      hash = "sha256-IsMMxlOunuUt3Vfvd+1qF/HQ9UScbOLw6cIW+ZbHXsk=";
+    };
+    sourceRoot = "source/native/exkeccak";
+    cargoHash = "sha256-vO9c7KbfblqvWqFoFAAfYk+AVISTfj+VEsYpF1iJlZA=";
+    useFetchCargoVendor = true;
+    doCheck = false;
+  };
+
+  brotliNif = rustPlatform.buildRustPackage {
+    pname = "ex_brotli";
+    version = "0.5.0";
+    src = fetchFromGitHub {
+      owner = "mfeckie";
+      repo = "ex_brotli";
+      rev = "0.5.0";
+      hash = "sha256-KbVllG4EAGaSrxbkaIKm68htNTsBx9HHxD59e89NDK8=";
+    };
+    sourceRoot = "source/native/ex_brotli";
+    cargoHash = "sha256-VjQFay3JcKxWyr1jpNUOVJekpZsbafINWD6kFY0Bi6Q=";
+    useFetchCargoVendor = true;
+    doCheck = false;
+  };
+
+  siweNif = rustPlatform.buildRustPackage {
+    pname = "siwe";
+    version = "0.1.0";
+    src = fetchFromGitHub {
+      owner = "royal-markets";
+      repo = "siwe-ex";
+      rev = "51c9c08240eb7eea3c35693011f8d260cd9bb3be";
+      hash = "sha256-ltxJSmHAfz2oJBGYt/kPa6pOHu40TxsFZ0KtstD+5U0=";
+    };
+    sourceRoot = "source/native/siwe_native";
+    cargoHash = "sha256-qe4DSNVlqJbB3+1X/2G9Ufyi2K8RqOyesvUxF6Nv418=";
+    useFetchCargoVendor = true;
+    doCheck = false;
   };
 
   mixNixDeps = import ./mix_deps.nix {
     inherit lib beamPackages;
+    overrides = final: _prev: {
+      rustler_precompiled = beamPackages.buildMix rec {
+        name = "rustler_precompiled";
+        version = "0.8.2";
+        src = beamPackages.fetchHex {
+          pkg = "rustler_precompiled";
+          version = "${version}";
+          sha256 = "63d1bd5f8e23096d1ff851839923162096364bac8656a4a3c00d1fff8e83ee0a";
+        };
+        beamDeps = with final; [castore];
+        patches = [./002_mix_rustler_skip_download.patch];
+      };
 
-    overrides = final: prev: {
+      ex_keccak = beamPackages.buildMix rec {
+        name = "ex_keccak";
+        version = "0.7.6";
+        src = beamPackages.fetchHex {
+          pkg = "ex_keccak";
+          version = "${version}";
+          sha256 = "9d1568424eb7b995e480d1b7f0c1e914226ee625496600abb922bba6f5cdc5e4";
+        };
+        beamDeps = with final; [rustler_precompiled];
+        env = {
+          RUSTLER_PRECOMPILED_FORCE_BUILD_ALL = "false";
+          RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH = "unused-but-required";
+        };
+        preBuild = ''
+          # Create directory structure that matches what the module is looking for
+          mkdir -p _build/prod/lib/ex_keccak/priv/native
+
+          # Copy the NIF file with the exact name expected
+          for lib in ${keccakNif}/lib/*
+          do
+            file=''${lib##*/}
+            cp "$lib" _build/prod/lib/ex_keccak/priv/native/libexkeccak-v${version}-nif-2.16-x86_64-unknown-linux-gnu.so
+
+            # Also maintain the standard location
+            mkdir -p priv/native/ex_keccak
+            ln -s "$lib" priv/native/ex_keccak/libexkeccak.so
+          done
+        '';
+      };
+
+      ex_brotli = beamPackages.buildMix rec {
+        name = "ex_brotli";
+        version = "0.5.0";
+        src = beamPackages.fetchHex {
+          pkg = "ex_brotli";
+          version = "${version}";
+          sha256 = "8447d98d51f8f312629fd38619d4f564507dcf3a03d175c3f8f4ddf98e46dd92";
+        };
+        beamDeps = with final; [phoenix rustler_precompiled];
+        env = {
+          RUSTLER_PRECOMPILED_FORCE_BUILD_ALL = "false";
+          RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH = "unused-but-required";
+        };
+        preBuild = ''
+          # Create the standard location
+          mkdir -p priv/native/ex_brotli
+
+          # Create the expected path for runtime
+          mkdir -p _build/prod/lib/ex_brotli/priv/native
+
+          for lib in ${brotliNif}/lib/*
+          do
+            file=''${lib##*/}
+            base=''${file%.*}
+
+            # Copy to the expected path with the exact filename
+            cp "$lib" _build/prod/lib/ex_brotli/priv/native/libex_brotli-v${version}-nif-2.15-x86_64-unknown-linux-gnu.so
+
+            # Also link to standard location
+            ln -s "$lib" priv/native/ex_brotli/$base.so
+          done
+        '';
+      };
+
+      ex_secp256k1 = beamPackages.buildMix rec {
+        name = "ex_secp256k1";
+        version = "0.7.4";
+        src = beamPackages.fetchHex {
+          pkg = "ex_secp256k1";
+          version = "${version}";
+          sha256 = "465fd788c83c24d2df47f302e8fb1011054c81a905345e377c957b159a783bfc";
+        };
+        beamDeps = with final; [rustler_precompiled];
+        env = {
+          RUSTLER_PRECOMPILED_FORCE_BUILD_ALL = "false";
+          RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH = "unused-but-required";
+        };
+        preBuild = ''
+          # Create the standard location
+          mkdir -p priv/native/ex_secp256k1
+
+          # Create the expected path for runtime
+          mkdir -p _build/prod/lib/ex_secp256k1/priv/native
+
+          for lib in ${secp256k1Nif}/lib/*
+          do
+            file=''${lib##*/}
+            base=''${file%.*}
+
+            # Copy to the expected path with the exact filename
+            cp "$lib" _build/prod/lib/ex_secp256k1/priv/native/libex_secp256k1-v${version}-nif-2.15-x86_64-unknown-linux-gnu.so
+
+            # Also link to standard location
+            ln -s "$lib" priv/native/ex_secp256k1/$base.so
+          done
+        '';
+      };
+
       # https://github.com/blockscout/absinthe_plug.git?90a8188e94e2650f13259fb16462075a87f98e18
       # ^ This is their forked version
       absinthe_plug = beamPackages.buildMix rec {
@@ -45,13 +214,26 @@
         };
       };
 
+      prometheus_phoenix = beamPackages.buildMix rec {
+        name = "prometheus_phoenix";
+        version = "1.3.0";
+        src = beamPackages.fetchHex {
+          pkg = "prometheus_phoenix";
+          version = "${version}";
+          sha256 = "c4d1404ac4e9d3d963da601db2a7d8ea31194f0017057fabf0cfb9bf5a6c8c75";
+        };
+        patches = [./001_mix_prometheus_phoenix_controller.patch];
+        beamDeps = with final; [phoenix prometheus_ex];
+      };
+
       prometheus_ex = beamPackages.buildMix rec {
         name = "prometheus_ex";
         version = "3.1.0";
-        src = beamPackages.fetchHex {
-          pkg = "prometheus_ex";
-          version = "${version}";
-          sha256 = "sha256-vFhNM6q66UznXUd+tmxxeHVbRaCa+3rdslPZDrZgId4=";
+        src = fetchFromGitHub {
+          owner = "lanodan";
+          repo = "prometheus.ex";
+          rev = "fix/elixir-1.14";
+          sha256 = "sha256-2PZP+YnwnHt69HtIAQvjMBqBbfdbkRSoMzb1AL2Zsyc=";
         };
         beamDeps = with final; [prometheus];
       };
@@ -59,63 +241,87 @@
       prometheus_process_collector = beamPackages.buildRebar3 rec {
         name = "prometheus_process_collector";
         version = "1.6.1";
-        src = beamPackages.fetchHex {
-          pkg = "prometheus_process_collector";
-          version = "${version}";
-          sha256 = "sha256-ke9yMqX8CBbE+oGniK6kqT5A7/gklmIjsJZEWJW1liI=";
+        src = fetchFromGitHub {
+          owner = "Phybbit";
+          repo = "prometheus_process_collector";
+          rev = "3dc94dcff422d7b9cbd7ddf6bf2a896446705f3f";
+          sha256 = "sha256-cmZiq0kROUiDQsd3EBIN7tcfB73E61/h/aNILh/NjXs=";
         };
         beamDeps = with final; [prometheus];
       };
 
-      ex_keccak = prev.ex_keccak.override {
-        preBuild = let
-          tarball = builtins.fetchurl {
-            url = "https://github.com/ExWeb3/ex_keccak/releases/download/v0.7.6/libexkeccak-v0.7.6-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz";
-            sha256 = "065zn88b6a6ih8zzhxlh1l8cpx3wpdbmjshpz30gg6c1ykv81j9k";
-          };
-        in ''
-          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
-          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
-
-          mkdir -p priv/native/ex_keccak
-          cd priv/native/ex_keccak
-          tar -xzvf ${tarball}
-          cd -
+      ex_cldr_lists = beamPackages.buildMix rec {
+        name = "ex_cldr_lists";
+        version = "2.11.1";
+        src = beamPackages.fetchHex {
+          pkg = "ex_cldr_lists";
+          version = "${version}";
+          sha256 = "00161c04510ccb3f18b19a6b8562e50c21f1e9c15b8ff4c934bea5aad0b4ade2";
+        };
+        beamDeps = with final; [ex_cldr_numbers ex_doc jason];
+        # Create the missing prod.exs file with the same content as dev.exs
+        preBuild = ''
+          mkdir -p config
+          echo 'import Config' > config/prod.exs
         '';
       };
 
-      ex_secp256k1 = prev.ex_secp256k1.override {
-        preBuild = let
-          tarball = builtins.fetchurl {
-            url = "https://github.com/ayrat555/ex_secp256k1/releases/download/v0.7.4/libex_secp256k1-v0.7.4-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz";
-            sha256 = "0bd8jx3gdx7dkhs9q8vqgh4kifv0k3alxflm0qll2zs7cy20qxiz";
-          };
-        in ''
-          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
-          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
-
-          mkdir -p priv/native/ex_secp256k1
-          cd priv/native/ex_secp256k1
-          tar -xzvf ${tarball}
-          cd -
+      ex_cldr_units = beamPackages.buildMix rec {
+        name = "ex_cldr_units";
+        version = "3.17.2";
+        src = beamPackages.fetchHex {
+          pkg = "ex_cldr_units";
+          version = "${version}";
+          sha256 = "457d76c6e3b548bd7aba3c7b5d157213be2842d1162c2283abf81d9e2f1e1fc7";
+        };
+        beamDeps = with final; [cldr_utils decimal ex_cldr_lists ex_cldr_numbers ex_doc jason];
+        preBuild = ''
+          mkdir -p config
+          echo 'import Config' > config/prod.exs
         '';
       };
 
-      ex_brotli = prev.ex_brotli.override {
-        preBuild = let
-          tarball = builtins.fetchurl {
-            url = "https://github.com/mfeckie/ex_brotli/releases/download/0.5.0/libex_brotli-v0.5.0-nif-2.15-x86_64-unknown-linux-gnu.so.tar.gz";
-            sha256 = "18hjhaqx5py57l94cnsjr6csv0gk467was5svzr68qq8hbbjpqjf";
-          };
-        in ''
-          export RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=./.rustler_precompiled
-          mkdir -p $RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH/metadata
-
-          mkdir -p priv/native/ex_brotli
-          cd priv/native/ex_brotli
-          tar -xzvf ${tarball}
-          cd -
+      siwe = beamPackages.buildMix rec {
+        name = "siwe";
+        version = "0.1.0";
+        src = fetchFromGitHub {
+          owner = "royal-markets";
+          repo = "siwe-ex";
+          rev = "51c9c08240eb7eea3c35693011f8d260cd9bb3be";
+          hash = "sha256-ltxJSmHAfz2oJBGYt/kPa6pOHu40TxsFZ0KtstD+5U0=";
+        };
+        beamDeps = with final; [
+          ex_abi
+          ex_rlp
+          ex_secp256k1
+          jason
+          rustler_precompiled
+        ];
+        env = {
+          RUSTLER_PRECOMPILED_FORCE_BUILD_ALL = "false";
+          RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH = "unused-but-required";
+        };
+        preBuild = ''
+          mkdir -p _build/prod/lib/siwe/priv/native
+          for lib in ${siweNif}/lib/*
+          do
+            cp "$lib" _build/prod/lib/siwe/priv/native/libsiwe_native-v0.6.0-nif-2.15-x86_64-unknown-linux-gnu.so
+            mkdir -p priv/native
+            cp "$lib" priv/native/libsiwe_native.so
+          done
         '';
+      };
+
+      briefly = beamPackages.buildMix rec {
+        name = "briefly";
+        version = "0.4.1";
+        src = fetchFromGitHub {
+          owner = "CargoSense";
+          repo = "briefly";
+          rev = "a533393826195e640f24089fca751826858ebe53";
+          hash = "sha256-Hm8zPvWeUqXaV/axEmffA9UJTxCskvF3JqUZG1PJze4=";
+        };
+        beamDeps = [];
       };
     };
   };
@@ -123,15 +329,4 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
-    patches = [./removed_nft_media_handler.patch];
-    # inherit mixFodDeps;
-    # if you have build time environment variables add them here
-    # MY_ENV_VAR = "my_value";
-
-    # postBuild = ''
-    #   # for external task you need a workaround for the no deps check flag
-    #   # https://github.com/phoenixframework/phoenix/issues/2690
-    #   mix do deps.loadpaths --no-deps-check, phx.digest
-    #   mix phx.digest --no-deps-check
-    # '';
   }
