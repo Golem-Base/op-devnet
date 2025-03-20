@@ -92,7 +92,7 @@
     genesis = configs.mkGenesis {
       chainId = L1_CHAIN_ID;
       inherit accounts;
-      balance = "0x8ac7230489e80000"; # 10 ETH
+      balance = "0xd3c21bcecceda1000000";
     };
     chain-config = configs.mkChainConfig {};
   in {
@@ -180,7 +180,10 @@
                 }
               }' "$EXECUTION_DIR/genesis.out.json" > "$EXECUTION_DIR/genesis.edited.json"
 
-              ${geth} init --datadir "$EXECUTION_DIR" $EXECUTION_DIR/genesis.edited.json
+              ${geth} init \
+                --state.scheme=hash \
+                --datadir "$EXECUTION_DIR" \
+                $EXECUTION_DIR/genesis.edited.json
 
               echo "$PWD"
             '';
@@ -201,6 +204,7 @@
                 --authrpc.jwtsecret=$L1_JWT \
                 --datadir "$EXECUTION_DIR" \
                 --syncmode=full \
+                --gcmode=archive \
                 --nodiscover \
                 --maxpeers 0 \
                 --verbosity 5 \
@@ -252,7 +256,7 @@
               ${probe} sendOnReady \
                 --rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
                 --private-key ${SEEDER_ACCOUNT.private-key} \
-                --amount 1
+                --value=$(cast 2w 1)
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
           };
@@ -261,7 +265,7 @@
           l2-deploy = {
             command = ''
               ${deploy-optimism} \
-                --rpc-url ${GETH_HTTP_PORT} \
+                --rpc-url http://localhost:${GETH_HTTP_PORT} \
                 --private-key ${DEPLOYER_ACCOUNT.private-key} \
                 --l1-chain-id ${L1_CHAIN_ID} \
                 --l2-chain-id ${L2_CHAIN_ID} \
@@ -375,8 +379,8 @@
           };
           l2-cl-proposer = {
             # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
-            # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false, it waits until those
-            # blocks are finalized, before making proposals to them
+            # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false it waits until those
+            # blocks are finalized before making proposals to them which is approx 2 epochs
             command = ''
               ${op-proposer} \
                 --allow-non-finalized=true \
@@ -393,27 +397,16 @@
           };
           # l2-check = {
           #   command = ''
-          #     L1_STANDARD_BRIDGE_PROXY_ADDRESS=$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)
+          #     L1_STANDARD_BRIDGE_ADDRESS=$(jq -r ".opChainDeployment.[0].l1StandardBridgeProxyAddress" $OP_STATE_CONFIG)
           #     L2_STANDARD_BRIDGE_ADDRESS=0x4200000000000000000000000000000000000010
-          #     ${check} l2 \
+          #     echo "L1 Bridge Address: $L1_STANDARD_BRIDGE_ADDRESS"
+          #     ${probe} bridgeEthAndFinalize \
           #       --private-key=${USER_ACCOUNT.private-key} \
           #       --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
           #       --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-          #       --l1-standard-bridge-proxy-address=$L1_STANDARD_BRIDGE_PROXY_ADDRESS \
+          #       --l1-standard-bridge-address=$L1_STANDARD_BRIDGE_ADDRESS \
           #       --l2-standard-bridge-address=$L2_STANDARD_BRIDGE_ADDRESS \
-          #       --deposit-amount=$(${cast} 2w 5)
-
-          #     # TODO Sleep here so L2 initialises, improve this
-          #     # sleep 5
-          #     #   ${USER_ACCOUNT.private-key} \
-          #     #   "http://localhost:${GETH_HTTP_PORT}" \
-          #     #   "http://localhost:${OP_GETH_HTTP_PORT}" \
-          #     #   "http://localhost:${OP_NODE_RPC_PORT}" \
-          #     #   "$(jq -r ".opChainDeployment.l1StandardBridgeProxyAddress" $OP_L1_ADDRESSES_FILE)" \
-          #     #   "$(jq -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG)" \
-          #     #   "$(jq -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
-          #     #   $(${cast} 2w 5) \
-          #     #   $(${cast} 2w 1)
+          #       --value=$(cast 2w 10)
           #   '';
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };

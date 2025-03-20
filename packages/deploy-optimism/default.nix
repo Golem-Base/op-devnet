@@ -360,7 +360,7 @@ in
     echo "Bootstraping superchain"
     ${op-deployer} bootstrap superchain \
         --private-key $PRIVATE_KEY \
-        --l1-rpc-url $L1_RPC_URL \
+        --l1-rpc-url $RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
         --guardian $GUARDIAN \
         --recommended-protocol-version $PROTOCOL_VERSION \
@@ -402,7 +402,7 @@ in
         --superchain-config-proxy $SUPERCHAIN_CONFIG_PROXY \
         --protocol-versions-proxy $PROTOCOL_VERSIONS_PROXY \
         --private-key $PRIVATE_KEY \
-        --l1-rpc-url $L1_RPC_URL \
+        --l1-rpc-url $RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
         --l1-contracts-release $L1_CONTRACTS_RELEASE \
         --upgrade-controller $UPGRADE_CONTROLLER \
@@ -411,7 +411,7 @@ in
     echo "Bootstraping proxy"
     ${op-deployer} bootstrap proxy \
         --private-key $PRIVATE_KEY \
-        --l1-rpc-url $L1_RPC_URL \
+        --l1-rpc-url $RPC_URL \
         --artifacts-locator $L1_ARTIFACTS_LOCATOR \
         --proxy-owner $L1_PROXY_ADMIN_OWNER \
         --outfile $PROXY_FILE
@@ -419,7 +419,7 @@ in
     echo "Applying config"
     ${op-deployer} apply \
         --private-key $PRIVATE_KEY \
-        --l1-rpc-url $L1_RPC_URL \
+        --l1-rpc-url $RPC_URL \
         --workdir $WORK_DIR
 
     echo "Generating genesis file"

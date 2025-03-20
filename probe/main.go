@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/Golem-Base/op.nix/probe/cmd"
+	"github.com/Golem-Base/op-devnet/probe/cmd"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	log.SetDefault(log.NewLogger(log.LogfmtHandlerWithLevel(os.Stdout, log.LevelInfo)))
+	log.SetDefault(log.NewLogger(log.JSONHandlerWithLevel(os.Stdout, log.LevelInfo)))
 	app := &cli.App{
 		Name:  "probe",
 		Usage: "Helper utilities for devnet",
