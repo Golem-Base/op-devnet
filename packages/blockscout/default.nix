@@ -329,4 +329,5 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
+    removeCookie = false;
   }
