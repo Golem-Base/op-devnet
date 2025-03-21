@@ -69,7 +69,11 @@
         PROJECT_DIR="$PWD"
         cd "$(mktemp -d)"
 
-        ln -s "$PWD" "$PROJECT_DIR/.devnet"
+        DEVNET_SYMLINK="$PROJECT_DIR/.devnet"
+        if [ -L "$DEVNET_SYMLINK" ] && [ -d "$DEVNET_SYMLINK" ]; then
+            rm "$DEVNET_SYMLINK"
+        fi
+        ln -s "$PWD" "$DEVNET_SYMLINK"
 
         EXECUTION_DIR="$PWD/execution"
         CONSENSUS_DIR="$PWD/consensus"
@@ -121,10 +125,10 @@
         export OP_STATE_CONFIG
         export OP_L1_ADDRESSES_FILE
         export POSTGRES_DIR
+        export DEVNET_SYMLINK
       '';
       cli.postHook = ''
-        # Remove symlink
-        rm -rf "$PROJECT_DIR/.devnet"
+        unlink "$DEVNET_SYMLINK"
       '';
 
       settings = {
@@ -158,6 +162,7 @@
 
               echo "$PWD"
             '';
+            shutdown.signal = 9;
           };
           l1-el = {
             command = ''
@@ -182,6 +187,7 @@
                 --allow-insecure-unlock \
                 --password $GETH_PASSWORD
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-cl-beacon = {
@@ -206,6 +212,7 @@
                 --minimum-peers-per-subnet=0 \
                 --verbosity=info
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-cl-validator = {
@@ -220,6 +227,7 @@
                 --chain-config-file=${chain-config} \
                 --force-clear-db
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
           };
           l1-check = {
@@ -229,6 +237,7 @@
                 --private-key ${SEEDER_ACCOUNT.private-key} \
                 --value=$(cast 2w 1)
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
           };
 
@@ -257,6 +266,7 @@
           #       --sequencer ${SEQUENCER.address} \
           #       --proposer ${PROPOSER.address}
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l1-check".condition = "process_completed_successfully";
           # };
 
@@ -267,6 +277,7 @@
           #       --datadir "$OP_GETH_DIR" \
           #       $OP_GENESIS_CONFIG
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-deploy".condition = "process_completed_successfully";
           # };
 
@@ -299,6 +310,7 @@
           #       --db.engine=pebble \
           #       --state.scheme=hash
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };
 
@@ -323,6 +335,7 @@
           #       --rollup.load-protocol-versions=true \
           #       --p2p.disable
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };
 
@@ -346,6 +359,7 @@
           #       --wait-node-sync \
           #       --throttle-threshold=0
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };
           # l2-cl-proposer = {
@@ -364,6 +378,7 @@
           #       --private-key=${PROPOSER.private-key} \
           #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };
           # l2-check = {
@@ -377,6 +392,7 @@
           #       --l2-standard-bridge-address="0x4200000000000000000000000000000000000010" \
           #       --value=$(cast 2w 10000)
           #   '';
+          #   shutdown.signal = 9;
           #   depends_on."l2-init".condition = "process_completed_successfully";
           # };
 
@@ -387,6 +403,7 @@
               ${dora} -config "$DORA_CONFIG_PATH"
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
+            shutdown.signal = 9;
           };
           blockscout = {
             command = ''
@@ -395,19 +412,18 @@
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
             depends_on."postgres".condition = "process_healthy";
+            shutdown.signal = 9;
           };
           postgres = {
             command = ''
-              if [ ! -d "$POSTGRES_DIR/data" ]; then
+              echo $POSTGRES_DB
               ${lib.getExe' pkgs.postgresql "initdb"} -D "$POSTGRES_DIR/data" \
                   --username=blockscout \
                   --pwfile=<(echo "$POSTGRES_PASSWORD") \
                   --auth=trust \
                   --encoding=UTF8 \
                   --data-checksums
-              fi
 
-              # Start PostgreSQL
               ${lib.getExe' pkgs.postgresql "postgres"} \
               -D "$POSTGRES_DIR/data" \
               -k "$POSTGRES_DIR/data" \
@@ -437,7 +453,6 @@
                   -d blockscout \
                   -c "ALTER USER blockscout WITH SUPERUSER;"
 
-              # Wait for the PostgreSQL server process
               wait
             '';
             environment = {
@@ -445,6 +460,7 @@
               POSTGRES_USER = "blockscout";
               POSTGRES_PASSWORD = "ceWb1MeLBEeOIfk65gU8EjF8";
             };
+            shutdown.signal = 9;
             # readiness_probe = {
             #   exec = {
             #     command = "${lib.getExe' pkgs.postgresql "postgres"} pg_isready -U blockscout -d blockscout -h localhost -p 7432";
@@ -455,9 +471,9 @@
             #   success_threshold = 1;
             #   failure_threshold = 5;
             # };
-            availability = {
-              restart = "always";
-            };
+            # availability = {
+            #   restart = "always";
+            # };
           };
         };
       };
