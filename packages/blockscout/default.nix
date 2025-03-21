@@ -330,4 +330,7 @@ in
     inherit src pname version;
     inherit mixNixDeps;
     removeCookie = false;
+    meta = {
+      mainProgram = "blockscout";
+    };
   }
