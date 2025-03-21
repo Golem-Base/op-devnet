@@ -64,7 +64,7 @@
     chain-config = configs.mkChainConfig {};
   in {
     process-compose."devnet" = {
-      cli.options.port = 5656;
+        cli.options.port = 5656;
       # We always create a tmp working directory
       cli.preHook = ''
         PROJECT_DIR="$PWD"
@@ -416,7 +416,7 @@
                 name = "blockscout.env";
                 text = ''
                   ETHEREUM_JSONRPC_VARIANT=geth
-                  DATABASE_URL = "postgresql://blockscout:blockscout@localhost:7432/blockscout";
+                  DATABASE_URL = "postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
                   ETHEREUM_JSONRPC_HTTP_URL = "http://localhost:${GETH_HTTP_PORT}";
                   ETHEREUM_JSONRPC_TRACE_URL = "http://localhost:${GETH_HTTP_PORT}";
                   ETHEREUM_JSONRPC_WS_URL = "ws://localhost:${GETH_WS_PORT}";
@@ -469,7 +469,7 @@
               -c port=5432
 
               # Wait for PostgreSQL to be ready
-              until ${lib.getExe' pkgs.postgresql "pg_isready"} -h localhost -p 7432; do
+              until ${lib.getExe' pkgs.postgresql "pg_isready"} -h localhost -p 5432; do
                   echo "Waiting for PostgreSQL to start..."
                   sleep 1
               done
@@ -477,7 +477,7 @@
               # Create database and set permissions
               ${lib.getExe' pkgs.postgresql "createdb"} \
                   -h localhost \
-                  -p 7432 \
+                  -p 5432 \
                   -U blockscout \
                   blockscout
 
