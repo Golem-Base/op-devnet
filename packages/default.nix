@@ -1,5 +1,9 @@
-_: {
-  perSystem = {pkgs, ...}: let
+{lib, ...}: {
+  perSystem = {
+    pkgs,
+    self',
+    ...
+  }: let
     inherit (pkgs) callPackage;
   in {
     packages = rec {
@@ -35,5 +39,15 @@ _: {
       op-node-v1_11_2 = callPackage ./op-node/op-node-v1_11_2.nix {};
       op-proposer-v1_10_0 = callPackage ./op-proposer/op-proposer-v1_10_0.nix {};
     };
+
+    apps =
+      lib.mapAttrs (_name: package: {
+        type = "app";
+        program = lib.getExe package;
+      }) (lib.filterAttrs (
+          _name: package:
+            lib.isDerivation package && package ? meta.mainProgram
+        )
+        self'.packages);
   };
 }
