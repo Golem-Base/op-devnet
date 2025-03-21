@@ -365,33 +365,51 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
+    mixEnv = "dev";
     postInstall = ''
       # Create the release configuration files
       mkdir -p $out/releases/${version}
 
-      # Create runtime.exs that loads from env file
+      # Create a simple runtime.exs that only loads config_helper
       cat > $out/releases/${version}/runtime.exs <<'EOF'
       import Config
 
-      config :blockscout,
-        ecto_repos: [Explorer.Repo, Explorer.Repo.Account]
+      config :logger, :console,
+        format: "$dateT$time $metadata[$level] $message\n",
+        level: :info
 
-      # Load environment variables from file if it exists
-      env_file = System.get_env("BLOCKSCOUT_ENV_FILE")
-      if env_file && File.exists?(env_file) do
-        File.stream!(env_file)
-        |> Stream.map(&String.trim/1)
-        |> Stream.reject(&(String.length(&1) == 0 || String.starts_with?(&1, "#")))
-        |> Stream.each(fn line ->
-          case String.split(line, "=", parts: 2) do
-            [key, value] -> System.put_env(String.trim(key), String.trim(value))
-            _ -> :ok
-          end
-        end)
-        |> Stream.run()
-      end
+      # Load the config helper for environment variable parsing
+      Code.eval_file(Path.join([__DIR__, "config_helper.exs"]))
       EOF
+
+      # Copy the config helper
+      cp ${src}/config/config_helper.exs $out/releases/${version}/config_helper.exs
+
+      # Create required directories
+      mkdir -p $out/dets $out/temp
     '';
+    # postInstall = ''
+    #   # Create the release configuration files
+    #   mkdir -p $out/releases/${version}
+    #   mkdir -p $out/config/runtime
+    #   mkdir -p $out/apps/explorer/config/runtime
+    #   mkdir -p $out/apps/ethereum_jsonrpc/config/runtime
+    #   mkdir -p $out/apps/indexer/config/runtime
+
+    #   # Copy the main config files
+    #   cp ${src}/config/config_helper.exs $out/releases/${version}/config_helper.exs
+    #   cp ${src}/config/runtime.exs $out/releases/${version}/runtime.exs
+
+    #   # Copy the runtime configs from each app
+    #   cp -r ${src}/apps/*/config/runtime/* $out/apps/*/config/runtime/
+
+    #   # Copy the prod.exs for each app if they exist
+    #   for app in explorer ethereum_jsonrpc indexer; do
+    #     if [ -f "${src}/apps/$app/config/prod.exs" ]; then
+    #       cp ${src}/apps/$app/config/prod.exs $out/apps/$app/config/
+    #     fi
+    #   done
+    # '';
     removeCookie = false;
     meta = {
       mainProgram = "blockscout";

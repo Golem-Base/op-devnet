@@ -416,36 +416,71 @@
                 name = "blockscout.env";
                 text = ''
                   ETHEREUM_JSONRPC_VARIANT=geth
-                  DATABASE_URL = "postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
-                  ETHEREUM_JSONRPC_HTTP_URL = "http://localhost:${GETH_HTTP_PORT}";
-                  ETHEREUM_JSONRPC_TRACE_URL = "http://localhost:${GETH_HTTP_PORT}";
-                  ETHEREUM_JSONRPC_WS_URL = "ws://localhost:${GETH_WS_PORT}";
+                  DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
+
+                  export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}";
+                  ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}";
+                  ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}";
+
+                  ECTO_USE_SSL=false
 
                   # Basic Configuration
-                  BLOCKSCOUT_HOST = "localhost";
-                  PORT = "4040";
-                  SECRET_KEY_BASE = "56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
+                  BLOCKSCOUT_HOST="localhost";
+                  PORT="4040";
+                  SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
 
                   # Chain Configuration
-                  CHAIN_ID = ${L1_CHAIN_ID};
-                  SUBNETWORK = "Local Testnet";
-                  NETWORK = "L1";
+                  CHAIN_ID=${L1_CHAIN_ID};
+                  SUBNETWORK="Local Testnet";
+                  NETWORK="L1";
 
                   # Cache Configuration
-                  DISABLE_EXCHANGE_RATES = "true";
+                  DISABLE_EXCHANGE_RATES=true;
 
                   # API Configuration
-                  API_V1_READ_METHODS_DISABLED = "false";
-                  API_V1_WRITE_METHODS_DISABLED = "false";
+                  API_V1_READ_METHODS_DISABLED=false;
+                  API_V1_WRITE_METHODS_DISABLED=false;
 
+                  ACCOUNT_ENABLED=false
                   NFT_MEDIA_HANDLER_ENABLED=false
                 '';
               };
             in
               pkgs.writeShellScriptBin "blockscout" ''
-                export BLOCKSCOUT_ENV_FILE=${blockscoutEnvFile}
-                cat $BLOCKSCOUT_ENV_FILE
-                ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && ${blockscout} start
+                export ETHEREUM_JSONRPC_VARIANT=geth
+                export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
+
+                export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}";
+                export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}";
+                export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}";
+
+                export ECTO_USE_SSL=false
+
+                # Basic Configuration
+                export BLOCKSCOUT_HOST="localhost";
+                export PORT="4040";
+                export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
+
+                # Chain Configuration
+                export CHAIN_ID=${L1_CHAIN_ID};
+                export SUBNETWORK="Local Testnet";
+                export NETWORK="L1";
+
+                # Cache Configuration
+                export DISABLE_EXCHANGE_RATES=true;
+
+                # API Configuration
+                export API_V1_READ_METHODS_DISABLED=false;
+                export API_V1_WRITE_METHODS_DISABLED=false;
+
+                export ACCOUNT_ENABLED=false
+                export NFT_MEDIA_HANDLER_ENABLED=false
+
+                echo "Starting database migration..."
+                ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+
+                echo "Starting Blockscout..."
+                exec ${blockscout} start
               '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
@@ -472,12 +507,25 @@
                   -U blockscout \
                   blockscout
 
+                  ${lib.getExe' pkgs.postgresql "createdb"} \
+                      -h 127.0.0.1 \
+                      -p 5432 \
+                      -U blockscout \
+                      blockscout_account
+
               ${lib.getExe' pkgs.postgresql "psql"} \
                   -h 127.0.0.1 \
                   -p 5432 \
                   -U blockscout \
                   -d blockscout \
                   -c "ALTER USER blockscout WITH SUPERUSER;"
+
+                  ${lib.getExe' pkgs.postgresql "psql"} \
+                      -h 127.0.0.1 \
+                      -p 5432 \
+                      -U blockscout \
+                      -d blockscout_account \
+                      -c "ALTER USER blockscout WITH SUPERUSER;"
 
               ${lib.getExe' pkgs.postgresql "pg_ctl"} \
                   -D "$POSTGRES_DIR/data" stop
