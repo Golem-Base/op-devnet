@@ -1,12 +1,12 @@
 _: {
-  perSystem = {system, ...}: {
+  perSystem = _: {
     treefmt.config = {
       flakeFormatter = true;
       flakeCheck = true;
       projectRootFile = "flake.nix";
       programs = {
         alejandra.enable = true;
-        deadnix.enable = true;
+        deadnix.enable = false;
         mdformat.enable = true;
         shellcheck.enable = true;
         shfmt.enable = true;
@@ -16,7 +16,7 @@ _: {
       };
       settings.formatter = {
         alejandra.priority = 3;
-        deadnix.priority = 1;
+        # deadnix.priority = 1;
         statix.priority = 2;
       };
     };
