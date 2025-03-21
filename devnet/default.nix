@@ -64,7 +64,6 @@
     chain-config = configs.mkChainConfig {};
   in {
     process-compose."devnet" = {
-      cli.options.log-file = "/home/aldo/Dev/numtide/golem/op.nix/log.txt";
       cli.options.port = 5656;
       # We always create a tmp working directory
       cli.preHook = ''
@@ -448,69 +447,61 @@
                 cat $BLOCKSCOUT_ENV_FILE
                 ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && ${blockscout} start
               '';
-            depends_on."l1-check".condition = "process_completed_successfully";
+            depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
           };
+
           postgres = {
-            command = ''
-              echo $POSTGRES_DB
-              ${lib.getExe' pkgs.postgresql "initdb"} -D "$POSTGRES_DIR/data" \
+            command = pkgs.writeShellScriptBin "postgres" ''
+              ${lib.getExe' pkgs.postgresql "initdb"} \
+                  -D "$POSTGRES_DIR/data" \
                   --username=blockscout \
                   --pwfile=<(echo "blockscout") \
                   --auth=trust \
                   --encoding=UTF8 \
                   --data-checksums
 
-              ${lib.getExe' pkgs.postgresql "postgres"} \
-              -D "$POSTGRES_DIR/data" \
-              -k "$POSTGRES_DIR/data" \
-              -c max_connections=200 \
-              -c client_connection_check_interval=60000 \
-              -c listen_addresses='127.0.0.1' \
-              -c port=5432
+              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+                  -D "$POSTGRES_DIR/data" \
+                  -o "-k $POSTGRES_DIR/data -h 127.0.0.1 -p 5432" \
+                  -w start
 
-              # Wait for PostgreSQL to be ready
-              until ${lib.getExe' pkgs.postgresql "pg_isready"} -h localhost -p 5432; do
-                  echo "Waiting for PostgreSQL to start..."
-                  sleep 1
-              done
-
-              # Create database and set permissions
               ${lib.getExe' pkgs.postgresql "createdb"} \
-                  -h localhost \
+                  -h 127.0.0.1 \
                   -p 5432 \
                   -U blockscout \
                   blockscout
 
-              # Grant all privileges to blockscout user
               ${lib.getExe' pkgs.postgresql "psql"} \
-                  -h localhost \
+                  -h 127.0.0.1 \
                   -p 5432 \
                   -U blockscout \
                   -d blockscout \
                   -c "ALTER USER blockscout WITH SUPERUSER;"
 
-              wait
+              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+                  -D "$POSTGRES_DIR/data" stop
+
+              ${lib.getExe' pkgs.postgresql "postgres"} \
+                  -D "$POSTGRES_DIR/data" \
+                  -k "$POSTGRES_DIR/data" \
+                  -c max_connections=200 \
+                  -c client_connection_check_interval=60000 \
+                  -c listen_addresses='127.0.0.1' \
+                  -c port=5432
             '';
-            environment = {
-              POSTGRES_DB = "blockscout";
-              POSTGRES_USER = "blockscout";
-              POSTGRES_PASSWORD = "blockscout";
+            readiness_probe = {
+              exec = {
+                command = ''
+                  ${lib.getExe' pkgs.postgresql "pg_isready"} -U blockscout -d blockscout -h localhost -p 5432;
+                '';
+              };
+              initial_delay_seconds = 5;
+              period_seconds = 10;
+              timeout_seconds = 5;
+              success_threshold = 1;
+              failure_threshold = 5;
             };
-            shutdown.signal = 9;
-            # readiness_probe = {
-            #   exec = {
-            #     command = "${lib.getExe' pkgs.postgresql "postgres"} pg_isready -U blockscout -d blockscout -h localhost -p 5432";
-            #   };
-            #   initial_delay_seconds = 10;
-            #   period_seconds = 10;
-            #   timeout_seconds = 5;
-            #   success_threshold = 1;
-            #   failure_threshold = 5;
-            # };
-            # availability = {
-            #   restart = "always";
-            # };
           };
         };
       };
