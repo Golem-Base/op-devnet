@@ -411,8 +411,32 @@
               ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && ${blockscout} start
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
-            depends_on."postgres".condition = "process_healthy";
+            #depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
+            environment = {
+              # Database Configuration
+              DATABASE_URL = "postgresql://blockscout:blockscout@localhost:7432/blockscout";
+              ETHEREUM_JSONRPC_HTTP_URL = "http://localhost:${GETH_HTTP_PORT}";
+              ETHEREUM_JSONRPC_TRACE_URL = "http://localhost:${GETH_HTTP_PORT}";
+              ETHEREUM_JSONRPC_WS_URL = "ws://localhost:${GETH_HTTP_PORT}";
+
+              # Basic Configuration
+              BLOCKSCOUT_HOST = "localhost";
+              PORT = "4000";
+              SECRET_KEY_BASE = "56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
+
+              # Chain Configuration
+              CHAIN_ID = L1_CHAIN_ID;
+              SUBNETWORK = "Local Testnet";
+              NETWORK = "L1";
+
+              # Cache Configuration
+              DISABLE_EXCHANGE_RATES = "true";
+
+              # API Configuration
+              API_V1_READ_METHODS_DISABLED = "false";
+              API_V1_WRITE_METHODS_DISABLED = "false";
+            };
           };
           postgres = {
             command = ''
@@ -430,7 +454,7 @@
               -c max_connections=200 \
               -c client_connection_check_interval=60000 \
               -c listen_addresses='127.0.0.1' \
-              -c port=7432
+              -c port=5432
 
               # Wait for PostgreSQL to be ready
               until ${lib.getExe' pkgs.postgresql "pg_isready"} -h localhost -p 7432; do
@@ -448,7 +472,7 @@
               # Grant all privileges to blockscout user
               ${lib.getExe' pkgs.postgresql "psql"} \
                   -h localhost \
-                  -p 7432 \
+                  -p 5432 \
                   -U blockscout \
                   -d blockscout \
                   -c "ALTER USER blockscout WITH SUPERUSER;"
@@ -458,12 +482,12 @@
             environment = {
               POSTGRES_DB = "blockscout";
               POSTGRES_USER = "blockscout";
-              POSTGRES_PASSWORD = "ceWb1MeLBEeOIfk65gU8EjF8";
+              POSTGRES_PASSWORD = "blockscout";
             };
             shutdown.signal = 9;
             # readiness_probe = {
             #   exec = {
-            #     command = "${lib.getExe' pkgs.postgresql "postgres"} pg_isready -U blockscout -d blockscout -h localhost -p 7432";
+            #     command = "${lib.getExe' pkgs.postgresql "postgres"} pg_isready -U blockscout -d blockscout -h localhost -p 5432";
             #   };
             #   initial_delay_seconds = 10;
             #   period_seconds = 10;
