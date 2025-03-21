@@ -365,6 +365,33 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
+    postInstall = ''
+      # Create the release configuration files
+      mkdir -p $out/releases/${version}
+
+      # Create runtime.exs that loads from env file
+      cat > $out/releases/${version}/runtime.exs <<'EOF'
+      import Config
+
+      config :blockscout,
+        ecto_repos: [Explorer.Repo, Explorer.Repo.Account]
+
+      # Load environment variables from file if it exists
+      env_file = System.get_env("BLOCKSCOUT_ENV_FILE")
+      if env_file && File.exists?(env_file) do
+        File.stream!(env_file)
+        |> Stream.map(&String.trim/1)
+        |> Stream.reject(&(String.length(&1) == 0 || String.starts_with?(&1, "#")))
+        |> Stream.each(fn line ->
+          case String.split(line, "=", parts: 2) do
+            [key, value] -> System.put_env(String.trim(key), String.trim(value))
+            _ -> :ok
+          end
+        end)
+        |> Stream.run()
+      end
+      EOF
+    '';
     removeCookie = false;
     meta = {
       mainProgram = "blockscout";
