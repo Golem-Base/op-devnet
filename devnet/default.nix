@@ -36,6 +36,7 @@
 
     # L1 specific config options
     GETH_HTTP_PORT = "8545";
+    GETH_WS_PORT = "8546";
     GETH_AUTH_PORT = "8551";
     GETH_METRICS_PORT = "8300";
     BEACON_HTTP_PORT = "4000";
@@ -173,6 +174,10 @@
                 --http.addr=127.0.0.1 \
                 --http.corsdomain="*" \
                 --http.port=${GETH_HTTP_PORT} \
+                --ws \
+                --ws.addr=127.0.0.1 \
+                --ws.port=${GETH_WS_PORT} \
+                --ws.api=admin,eth,net,debug,web3 \
                 --metrics.port=${GETH_METRICS_PORT} \
                 --authrpc.vhosts="*" \
                 --authrpc.addr=127.0.0.1 \
@@ -406,37 +411,44 @@
             shutdown.signal = 9;
           };
           blockscout = {
-            command = ''
-              cd "$BLOCKSCOUT_DIR"
-              ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && ${blockscout} start
-            '';
+            command = let
+              blockscoutEnvFile = pkgs.writeTextFile {
+                name = "blockscout.env";
+                text = ''
+                  ETHEREUM_JSONRPC_VARIANT=geth
+                  DATABASE_URL = "postgresql://blockscout:blockscout@localhost:7432/blockscout";
+                  ETHEREUM_JSONRPC_HTTP_URL = "http://localhost:${GETH_HTTP_PORT}";
+                  ETHEREUM_JSONRPC_TRACE_URL = "http://localhost:${GETH_HTTP_PORT}";
+                  ETHEREUM_JSONRPC_WS_URL = "ws://localhost:${GETH_WS_PORT}";
+
+                  # Basic Configuration
+                  BLOCKSCOUT_HOST = "localhost";
+                  PORT = "4040";
+                  SECRET_KEY_BASE = "56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
+
+                  # Chain Configuration
+                  CHAIN_ID = ${L1_CHAIN_ID};
+                  SUBNETWORK = "Local Testnet";
+                  NETWORK = "L1";
+
+                  # Cache Configuration
+                  DISABLE_EXCHANGE_RATES = "true";
+
+                  # API Configuration
+                  API_V1_READ_METHODS_DISABLED = "false";
+                  API_V1_WRITE_METHODS_DISABLED = "false";
+
+                  NFT_MEDIA_HANDLER_ENABLED=false
+                '';
+              };
+            in
+              pkgs.writeShellScriptBin "blockscout" ''
+                export BLOCKSCOUT_ENV_FILE=${blockscoutEnvFile}
+                cat $BLOCKSCOUT_ENV_FILE
+                ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()" && ${blockscout} start
+              '';
             depends_on."l1-check".condition = "process_completed_successfully";
-            #depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
-            environment = {
-              # Database Configuration
-              DATABASE_URL = "postgresql://blockscout:blockscout@localhost:7432/blockscout";
-              ETHEREUM_JSONRPC_HTTP_URL = "http://localhost:${GETH_HTTP_PORT}";
-              ETHEREUM_JSONRPC_TRACE_URL = "http://localhost:${GETH_HTTP_PORT}";
-              ETHEREUM_JSONRPC_WS_URL = "ws://localhost:${GETH_HTTP_PORT}";
-
-              # Basic Configuration
-              BLOCKSCOUT_HOST = "localhost";
-              PORT = "4000";
-              SECRET_KEY_BASE = "56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
-
-              # Chain Configuration
-              CHAIN_ID = L1_CHAIN_ID;
-              SUBNETWORK = "Local Testnet";
-              NETWORK = "L1";
-
-              # Cache Configuration
-              DISABLE_EXCHANGE_RATES = "true";
-
-              # API Configuration
-              API_V1_READ_METHODS_DISABLED = "false";
-              API_V1_WRITE_METHODS_DISABLED = "false";
-            };
           };
           postgres = {
             command = ''
