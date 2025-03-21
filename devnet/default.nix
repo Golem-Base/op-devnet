@@ -64,7 +64,8 @@
     chain-config = configs.mkChainConfig {};
   in {
     process-compose."devnet" = {
-        cli.options.port = 5656;
+      cli.options.log-file = "/home/aldo/Dev/numtide/golem/op.nix/log.txt";
+      cli.options.port = 5656;
       # We always create a tmp working directory
       cli.preHook = ''
         PROJECT_DIR="$PWD"
@@ -455,7 +456,7 @@
               echo $POSTGRES_DB
               ${lib.getExe' pkgs.postgresql "initdb"} -D "$POSTGRES_DIR/data" \
                   --username=blockscout \
-                  --pwfile=<(echo "$POSTGRES_PASSWORD") \
+                  --pwfile=<(echo "blockscout") \
                   --auth=trust \
                   --encoding=UTF8 \
                   --data-checksums
