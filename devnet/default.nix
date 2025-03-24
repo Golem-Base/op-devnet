@@ -102,8 +102,12 @@
       cli.preHook = ''
         PROJECT_DIR="$PWD"
         cd "$(mktemp -d)"
+        SYMLINK_PATH="$PROJECT_DIR/.devnet"
 
-        ln -s "$PWD" "$PROJECT_DIR/.devnet"
+        if [ -L "$SYMLINK_PATH" ]; then
+          unlink "$SYMLINK_PATH"
+        fi
+        ln -s "$PWD" "$SYMLINK_PATH"
 
         EXECUTION_DIR="$PWD/execution"
         CONSENSUS_DIR="$PWD/consensus"
@@ -153,9 +157,8 @@
       '';
       cli.postHook = ''
         # Remove symlink
-        rm -rf "$PROJECT_DIR/.devnet"
+        unlink "$SYMLINK_PATH"
       '';
-
       settings = {
         processes = {
           # L1
@@ -187,7 +190,9 @@
 
               echo "$PWD"
             '';
+            shutdown.command = "9";
           };
+
           l1-el = {
             command = ''
               ${geth} \
@@ -212,6 +217,7 @@
                 --password $GETH_PASSWORD
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-cl-beacon = {
             command = ''
@@ -236,6 +242,7 @@
                 --verbosity=info
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-cl-validator = {
             command = ''
@@ -250,6 +257,7 @@
                 --force-clear-db
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-check = {
             command = ''
@@ -259,6 +267,7 @@
                 --value=$(cast 2w 1)
             '';
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           # L2
@@ -287,6 +296,7 @@
                 --proposer ${PROPOSER.address}
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-init = {
@@ -297,6 +307,7 @@
                 $OP_GENESIS_CONFIG
             '';
             depends_on."l2-deploy".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-el = {
@@ -329,6 +340,7 @@
                 --state.scheme=hash
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-cl-sequencer = {
@@ -353,6 +365,7 @@
                 --p2p.disable
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-cl-batcher = {
@@ -376,6 +389,7 @@
                 --throttle-threshold=0
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l2-cl-proposer = {
             # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
@@ -394,6 +408,7 @@
                 --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l2-check = {
             command = ''
@@ -407,6 +422,7 @@
                 --value=$(cast 2w 10000)
             '';
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           # misc
@@ -416,6 +432,7 @@
               ${dora} -config "$DORA_CONFIG_PATH"
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
         };
       };
