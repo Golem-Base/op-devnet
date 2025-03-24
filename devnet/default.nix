@@ -412,78 +412,172 @@
           };
           blockscout = {
             command = let
-              blockscoutEnvFile = pkgs.writeTextFile {
-                name = "blockscout.env";
+              # Create a minimal prod.exs runtime configuration file
+              prodExs = pkgs.writeTextFile {
+                name = "prod.exs";
                 text = ''
-                  ETHEREUM_JSONRPC_VARIANT=geth
-                  DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
+                  import Config
 
-                  export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}";
-                  ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}";
-                  ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}";
-
-                  ECTO_USE_SSL=false
-
-                  # Basic Configuration
-                  BLOCKSCOUT_HOST="localhost";
-                  PORT="4040";
-                  SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
-
-                  # Chain Configuration
-                  CHAIN_ID=${L1_CHAIN_ID};
-                  SUBNETWORK="Local Testnet";
-                  NETWORK="L1";
-
-                  # Cache Configuration
-                  DISABLE_EXCHANGE_RATES=true;
-
-                  # API Configuration
-                  API_V1_READ_METHODS_DISABLED=false;
-                  API_V1_WRITE_METHODS_DISABLED=false;
-
-                  ACCOUNT_ENABLED=false
-                  NFT_MEDIA_HANDLER_ENABLED=false
+                  # Use the config_helper for environment variables
+                  Code.require_file("config_helper.exs", "#{File.cwd!()}/config")
                 '';
               };
-            in
-              pkgs.writeShellScriptBin "blockscout" ''
+
+              # Copy of config_helper.exs (in case we need it)
+              configHelper = pkgs.runCommand "config_helper.exs" {} ''
+                cp ${self'.packages.blockscout}/config/config_helper.exs $out
+              '';
+
+              # Create a wrapper script that sets up everything
+              blockscoutEnvScript = pkgs.writeShellScript "blockscout-env.sh" ''
+                # Create a temporary directory for our configuration
+                export TEMP_CONFIG_DIR=$(mktemp -d)
+                trap 'rm -rf "$TEMP_CONFIG_DIR"' EXIT
+
+                # Create directory structure
+                mkdir -p "$TEMP_CONFIG_DIR/config/runtime"
+                mkdir -p "$TEMP_CONFIG_DIR/tzdata"
+
+                # Create a more specific prod.exs file
+                cat > "$TEMP_CONFIG_DIR/config/runtime/prod.exs" << 'EOF'
+                import Config
+
+                # Fix tzdata directory permissions issue
+                config :tzdata, :data_dir, System.get_env("TZDATA_DIR", "tzdata")
+
+                config :block_scout_web, BlockScoutWeb.Endpoint,
+                  http: [port: String.to_integer(System.get_env("PORT", "4040"))],
+                  url: [
+                    scheme: System.get_env("BLOCKSCOUT_PROTOCOL", "http"),
+                    host: System.get_env("BLOCKSCOUT_HOST", "localhost"),
+                    port: String.to_integer(System.get_env("PORT", "4040"))
+                  ],
+                  cache_static_manifest: "priv/static/cache_manifest.json",
+                  secret_key_base: System.get_env("SECRET_KEY_BASE"),
+                  check_origin: false
+
+                # Database configuration - explicitly set database properties
+                config :explorer, Explorer.Repo,
+                  username: "blockscout",
+                  password: "blockscout",
+                  hostname: "localhost",
+                  port: 5432,
+                  database: "blockscout",
+                  ssl: false,
+                  pool_size: 50
+
+                # Account database configuration
+                config :explorer, Explorer.Repo.Account,
+                  username: "blockscout",
+                  password: "blockscout",
+                  hostname: "localhost",
+                  port: 5432,
+                  database: "blockscout_account",
+                  ssl: false,
+                  pool_size: 50
+
+                # API database configuration
+                config :explorer, Explorer.Repo.Replica1,
+                  username: "blockscout",
+                  password: "blockscout",
+                  hostname: "localhost",
+                  port: 5432,
+                  database: "blockscout",
+                  ssl: false,
+                  pool_size: 50
+
+                # Indexer JSON RPC configuration
+                config :indexer,
+                  json_rpc_named_arguments: [
+                    transport: EthereumJSONRPC.HTTP,
+                    transport_options: [
+                      http: EthereumJSONRPC.HTTP.HTTPoison,
+                      url: System.get_env("ETHEREUM_JSONRPC_HTTP_URL"),
+                      http_options: [
+                        recv_timeout: 60_000,
+                        timeout: 60_000
+                      ]
+                    ],
+                    variant: EthereumJSONRPC.Geth
+                  ]
+
+                # Use the config_helper for other environment variables
+                if File.exists?("#{File.cwd!()}/config/config_helper.exs") do
+                  Code.require_file("config_helper.exs", "#{File.cwd!()}/config")
+                end
+                EOF
+
+                # Copy config_helper.exs if it exists
+                if [ -f "${self'.packages.blockscout}/config/config_helper.exs" ]; then
+                  cp "${self'.packages.blockscout}/config/config_helper.exs" "$TEMP_CONFIG_DIR/config/config_helper.exs"
+                fi
+
+                # Create required data directories
+                mkdir -p dets temp
+
+                # Change to the temp directory so relative paths work
+                cd "$TEMP_CONFIG_DIR"
+
+                # Database Configuration - explicit database settings
+                export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable"
+
+                # Ethereum JSON RPC Configuration
                 export ETHEREUM_JSONRPC_VARIANT=geth
-                export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable";
+                export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}"
+                export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}"
+                export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
 
-                export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}";
-                export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}";
-                export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}";
+                # Set tzdata directory to a writable location
+                export TZDATA_DIR="$TEMP_CONFIG_DIR/tzdata"
 
+                # SSL Configuration
                 export ECTO_USE_SSL=false
 
                 # Basic Configuration
-                export BLOCKSCOUT_HOST="localhost";
-                export PORT="4040";
-                export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN";
+                export BLOCKSCOUT_PROTOCOL="http"
+                export BLOCKSCOUT_HOST="localhost"
+                export PORT="4040"
+                export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN"
 
                 # Chain Configuration
-                export CHAIN_ID=${L1_CHAIN_ID};
-                export SUBNETWORK="Local Testnet";
-                export NETWORK="L1";
+                export CHAIN_ID=${L1_CHAIN_ID}
+                export SUBNETWORK="Local Testnet"
+                export NETWORK="L1"
+                export CHAIN_TYPE="ethereum"
 
-                # Cache Configuration
-                export DISABLE_EXCHANGE_RATES=true;
-
-                # API Configuration
-                export API_V1_READ_METHODS_DISABLED=false;
-                export API_V1_WRITE_METHODS_DISABLED=false;
-
+                # Runtime Behavior Configuration
                 export ACCOUNT_ENABLED=false
+                export ADMIN_PANEL_ENABLED=true
+                export API_V1_READ_METHODS_DISABLED=false
+                export API_V1_WRITE_METHODS_DISABLED=false
+                export DISABLE_EXCHANGE_RATES=true
+                export DISABLE_INDEXER=true
+                export DISABLE_WEBAPP=false
+                export MUD_INDEXER_ENABLED=false
                 export NFT_MEDIA_HANDLER_ENABLED=false
 
-                echo "Starting database migration..."
-                ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+                # Set RELEASE_COOKIE if not already set
+                export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
 
-                echo "Starting Blockscout..."
-                exec ${blockscout} start
+                # Set RUNTIME_CONFIG=true to ensure it reads the runtime config
+                export RUNTIME_CONFIG=true
+
+                # Export config directory location so Blockscout can find it
+                export RELEASE_CONFIG_DIR="$TEMP_CONFIG_DIR/config"
+
+                # Run the command that was passed to this script
+                exec "$@"
               '';
+            in ''
+              echo "Starting database migration..."
+              ${blockscoutEnvScript} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+
+              echo "Starting Blockscout..."
+              exec ${blockscoutEnvScript} ${blockscout} start
+            '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
+            log_location = "/home/aldo/Dev/numtide/golem/op.nix/logs.txt";
           };
 
           postgres = {
@@ -526,6 +620,33 @@
                       -U blockscout \
                       -d blockscout_account \
                       -c "ALTER USER blockscout WITH SUPERUSER;"
+
+                      ${lib.getExe' pkgs.postgresql "createdb"} \
+                          -h 127.0.0.1 \
+                          -p 5432 \
+                          -U blockscout \
+                          blockscout_api
+
+                      ${lib.getExe' pkgs.postgresql "createdb"} \
+                          -h 127.0.0.1 \
+                          -p 5432 \
+                          -U blockscout \
+                          blockscout_mud
+
+                      # Grant superuser to these databases too
+                      ${lib.getExe' pkgs.postgresql "psql"} \
+                          -h 127.0.0.1 \
+                          -p 5432 \
+                          -U blockscout \
+                          -d blockscout_api \
+                          -c "ALTER USER blockscout WITH SUPERUSER;"
+
+                      ${lib.getExe' pkgs.postgresql "psql"} \
+                          -h 127.0.0.1 \
+                          -p 5432 \
+                          -U blockscout \
+                          -d blockscout_mud \
+                          -c "ALTER USER blockscout WITH SUPERUSER;"
 
               ${lib.getExe' pkgs.postgresql "pg_ctl"} \
                   -D "$POSTGRES_DIR/data" stop
