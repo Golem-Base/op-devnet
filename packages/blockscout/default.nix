@@ -409,11 +409,17 @@ in
 
     postInstall = ''
       # Create the release configuration files
+      mkdir -p $out/apps/{block_scout_web,explorer,indexer}
       mkdir -p $out/releases/${version}
 
       # Copy config files
+      cp -r ${src}/apps/block_scout_web/config $out/apps/block_scout_web/config
+      cp -r ${src}/apps/explorer/config $out/apps/explorer/config
+      cp -r ${src}/apps/indexer/config $out/apps/indexer/config
+
       cp ${src}/config/config_helper.exs $out/releases/${version}/config_helper.exs
-      cp ${src}/config/config_helper.exs $out/config/config_helper.exs
+
+      cp -r ${src}/config/ $out
 
       # Create basic static assets if they don't exist
       mkdir -p $out/lib/block_scout_web-${version}/priv/static

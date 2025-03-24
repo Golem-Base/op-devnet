@@ -412,22 +412,6 @@
           };
           blockscout = {
             command = let
-              # Create a minimal prod.exs runtime configuration file
-              prodExs = pkgs.writeTextFile {
-                name = "prod.exs";
-                text = ''
-                  import Config
-
-                  # Use the config_helper for environment variables
-                  Code.require_file("config_helper.exs", "#{File.cwd!()}/config")
-                '';
-              };
-
-              # Copy of config_helper.exs (in case we need it)
-              configHelper = pkgs.runCommand "config_helper.exs" {} ''
-                cp ${self'.packages.blockscout}/config/config_helper.exs $out
-              '';
-
               # Create a wrapper script that sets up everything
               blockscoutEnvScript = pkgs.writeShellScript "blockscout-env.sh" ''
                 # Create a temporary directory for our configuration
@@ -438,79 +422,11 @@
                 mkdir -p "$TEMP_CONFIG_DIR/config/runtime"
                 mkdir -p "$TEMP_CONFIG_DIR/tzdata"
 
-                # Create a more specific prod.exs file
-                cat > "$TEMP_CONFIG_DIR/config/runtime/prod.exs" << 'EOF'
-                import Config
-
-                # Fix tzdata directory permissions issue
-                config :tzdata, :data_dir, System.get_env("TZDATA_DIR", "tzdata")
-
-                config :block_scout_web, BlockScoutWeb.Endpoint,
-                  http: [port: String.to_integer(System.get_env("PORT", "4040"))],
-                  url: [
-                    scheme: System.get_env("BLOCKSCOUT_PROTOCOL", "http"),
-                    host: System.get_env("BLOCKSCOUT_HOST", "localhost"),
-                    port: String.to_integer(System.get_env("PORT", "4040"))
-                  ],
-                  cache_static_manifest: "priv/static/cache_manifest.json",
-                  secret_key_base: System.get_env("SECRET_KEY_BASE"),
-                  check_origin: false
-
-                # Database configuration - explicitly set database properties
-                config :explorer, Explorer.Repo,
-                  username: "blockscout",
-                  password: "blockscout",
-                  hostname: "localhost",
-                  port: 5432,
-                  database: "blockscout",
-                  ssl: false,
-                  pool_size: 50
-
-                # Account database configuration
-                config :explorer, Explorer.Repo.Account,
-                  username: "blockscout",
-                  password: "blockscout",
-                  hostname: "localhost",
-                  port: 5432,
-                  database: "blockscout_account",
-                  ssl: false,
-                  pool_size: 50
-
-                # API database configuration
-                config :explorer, Explorer.Repo.Replica1,
-                  username: "blockscout",
-                  password: "blockscout",
-                  hostname: "localhost",
-                  port: 5432,
-                  database: "blockscout",
-                  ssl: false,
-                  pool_size: 50
-
-                # Indexer JSON RPC configuration
-                config :indexer,
-                  json_rpc_named_arguments: [
-                    transport: EthereumJSONRPC.HTTP,
-                    transport_options: [
-                      http: EthereumJSONRPC.HTTP.HTTPoison,
-                      url: System.get_env("ETHEREUM_JSONRPC_HTTP_URL"),
-                      http_options: [
-                        recv_timeout: 60_000,
-                        timeout: 60_000
-                      ]
-                    ],
-                    variant: EthereumJSONRPC.Geth
-                  ]
-
-                # Use the config_helper for other environment variables
-                if File.exists?("#{File.cwd!()}/config/config_helper.exs") do
-                  Code.require_file("config_helper.exs", "#{File.cwd!()}/config")
-                end
-                EOF
-
                 # Copy config_helper.exs if it exists
-                if [ -f "${self'.packages.blockscout}/config/config_helper.exs" ]; then
-                  cp "${self'.packages.blockscout}/config/config_helper.exs" "$TEMP_CONFIG_DIR/config/config_helper.exs"
-                fi
+                cp -r "${self'.packages.blockscout}/apps" "$TEMP_CONFIG_DIR/apps"
+                cp "${self'.packages.blockscout}/config/runtime/prod.exs" "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
+                cp "${self'.packages.blockscout}/config/config.exs" "$TEMP_CONFIG_DIR/config/config.exs"
+                cp "${self'.packages.blockscout}/config/config_helper.exs" "$TEMP_CONFIG_DIR/config/config_helper.exs"
 
                 # Create required data directories
                 mkdir -p dets temp
@@ -551,10 +467,15 @@
                 export API_V1_READ_METHODS_DISABLED=false
                 export API_V1_WRITE_METHODS_DISABLED=false
                 export DISABLE_EXCHANGE_RATES=true
-                export DISABLE_INDEXER=true
+                export DISABLE_INDEXER=false
                 export DISABLE_WEBAPP=false
                 export MUD_INDEXER_ENABLED=false
                 export NFT_MEDIA_HANDLER_ENABLED=false
+
+                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+                export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
+                export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
+                export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
 
                 # Set RELEASE_COOKIE if not already set
                 export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
@@ -565,6 +486,8 @@
                 # Export config directory location so Blockscout can find it
                 export RELEASE_CONFIG_DIR="$TEMP_CONFIG_DIR/config"
 
+                export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
+
                 # Run the command that was passed to this script
                 exec "$@"
               '';
@@ -573,7 +496,7 @@
               ${blockscoutEnvScript} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
 
               echo "Starting Blockscout..."
-              exec ${blockscoutEnvScript} ${blockscout} start
+             ${blockscoutEnvScript} ${blockscout} start
             '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
@@ -601,11 +524,11 @@
                   -U blockscout \
                   blockscout
 
-                  ${lib.getExe' pkgs.postgresql "createdb"} \
-                      -h 127.0.0.1 \
-                      -p 5432 \
-                      -U blockscout \
-                      blockscout_account
+              ${lib.getExe' pkgs.postgresql "createdb"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  blockscout_account
 
               ${lib.getExe' pkgs.postgresql "psql"} \
                   -h 127.0.0.1 \
@@ -614,39 +537,39 @@
                   -d blockscout \
                   -c "ALTER USER blockscout WITH SUPERUSER;"
 
-                  ${lib.getExe' pkgs.postgresql "psql"} \
-                      -h 127.0.0.1 \
-                      -p 5432 \
-                      -U blockscout \
-                      -d blockscout_account \
-                      -c "ALTER USER blockscout WITH SUPERUSER;"
+              ${lib.getExe' pkgs.postgresql "psql"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  -d blockscout_account \
+                  -c "ALTER USER blockscout WITH SUPERUSER;"
 
-                      ${lib.getExe' pkgs.postgresql "createdb"} \
-                          -h 127.0.0.1 \
-                          -p 5432 \
-                          -U blockscout \
-                          blockscout_api
+              ${lib.getExe' pkgs.postgresql "createdb"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  blockscout_api
 
-                      ${lib.getExe' pkgs.postgresql "createdb"} \
-                          -h 127.0.0.1 \
-                          -p 5432 \
-                          -U blockscout \
-                          blockscout_mud
+              ${lib.getExe' pkgs.postgresql "createdb"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  blockscout_mud
 
-                      # Grant superuser to these databases too
-                      ${lib.getExe' pkgs.postgresql "psql"} \
-                          -h 127.0.0.1 \
-                          -p 5432 \
-                          -U blockscout \
-                          -d blockscout_api \
-                          -c "ALTER USER blockscout WITH SUPERUSER;"
+              # Grant superuser to these databases too
+              ${lib.getExe' pkgs.postgresql "psql"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  -d blockscout_api \
+                  -c "ALTER USER blockscout WITH SUPERUSER;"
 
-                      ${lib.getExe' pkgs.postgresql "psql"} \
-                          -h 127.0.0.1 \
-                          -p 5432 \
-                          -U blockscout \
-                          -d blockscout_mud \
-                          -c "ALTER USER blockscout WITH SUPERUSER;"
+              ${lib.getExe' pkgs.postgresql "psql"} \
+                  -h 127.0.0.1 \
+                  -p 5432 \
+                  -U blockscout \
+                  -d blockscout_mud \
+                  -c "ALTER USER blockscout WITH SUPERUSER;"
 
               ${lib.getExe' pkgs.postgresql "pg_ctl"} \
                   -D "$POSTGRES_DIR/data" stop
