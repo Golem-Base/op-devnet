@@ -213,6 +213,7 @@
                 --nodiscover \
                 --maxpeers 0 \
                 --verbosity 5 \
+                --nousb=true \
                 --allow-insecure-unlock \
                 --password $GETH_PASSWORD
             '';
@@ -336,6 +337,7 @@
                 --authrpc.jwtsecret=$L2_JWT \
                 --rollup.disabletxpoolgossip=true \
                 --port=${OP_GETH_DISCOVERY_PORT} \
+                --nousb=true \
                 --db.engine=pebble \
                 --state.scheme=hash
             '';
