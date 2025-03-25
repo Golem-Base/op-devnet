@@ -472,7 +472,7 @@
                 export MUD_INDEXER_ENABLED=false
                 export NFT_MEDIA_HANDLER_ENABLED=false
 
-                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=false
                 export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
                 export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
                 export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
@@ -492,11 +492,11 @@
                 exec "$@"
               '';
             in ''
-              echo "Starting database migration..."
-              ${blockscoutEnvScript} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+               echo "Starting database migration..."
+               ${blockscoutEnvScript} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
 
-              echo "Starting Blockscout..."
-             ${blockscoutEnvScript} ${blockscout} start
+               echo "Starting Blockscout..."
+              ${blockscoutEnvScript} ${blockscout} start
             '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
