@@ -468,11 +468,11 @@
                 export API_V1_WRITE_METHODS_DISABLED=false
                 export DISABLE_EXCHANGE_RATES=true
                 export DISABLE_INDEXER=false
-                export DISABLE_WEBAPP=false
+                export DISABLE_WEBAPP=true
                 export MUD_INDEXER_ENABLED=false
                 export NFT_MEDIA_HANDLER_ENABLED=false
 
-                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=false
+                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
                 export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
                 export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
                 export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
@@ -486,6 +486,7 @@
                 # Export config directory location so Blockscout can find it
                 export RELEASE_CONFIG_DIR="$TEMP_CONFIG_DIR/config"
 
+                # Add more informative errors
                 export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
 
                 # Run the command that was passed to this script
@@ -500,7 +501,56 @@
             '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
-            log_location = "/home/aldo/Dev/numtide/golem/op.nix/logs.txt";
+            log_location = "$PRJ_DATA/pc/logs/blockscout";
+          };
+
+          blockscout-frontend = {
+            command = ''
+              export NEXT_PUBLIC_NETWORK_NAME="Op Dev"
+              export NEXT_PUBLIC_NETWORK_SHORT_NAME="OpDev"
+              export NEXT_PUBLIC_NETWORK_ID="${L1_CHAIN_ID}"
+              export NEXT_PUBLIC_NETWORK_CURRENCY_NAME="Ether"
+              export NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL="ETH"
+              export NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS="18"
+              export NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE="validation"
+              export NEXT_PUBLIC_IS_TESTNET="true"
+
+              # API configuration for connecting to the Blockscout backend
+              export NEXT_PUBLIC_API_PROTOCOL="http"
+              export NEXT_PUBLIC_API_HOST="localhost"
+              export NEXT_PUBLIC_API_PORT="4040"
+
+              # General app configuration
+              export NEXT_PUBLIC_APP_PROTOCOL="http"
+              export NEXT_PUBLIC_APP_HOST="localhost"
+              export NEXT_PUBLIC_APP_PORT="3000"
+
+              # Features to enable
+              export NEXT_PUBLIC_VIEWS_ADDRESS_IDENTICON_TYPE="jazzicon"
+              export NEXT_PUBLIC_WEB3_WALLETS='["metamask"]'
+              export NEXT_PUBLIC_TRANSACTION_INTERPRETATION_PROVIDER="blockscout"
+              export NEXT_PUBLIC_HOMEPAGE_CHARTS='["daily_txs"]'
+              export NEXT_PUBLIC_HOMEPAGE_STATS='["total_blocks","average_block_time","total_txs","wallet_addresses","gas_tracker"]'
+
+              # UI Configuration
+              export NEXT_PUBLIC_PROMOTE_BLOCKSCOUT_IN_TITLE="false"
+              export NEXT_PUBLIC_OG_DESCRIPTION="Op Blockchain Explorer"
+
+              # Start the frontend
+              ${lib.getExe self'.packages.blockscout-frontend}
+            '';
+            readiness_probe = {
+              http_get = {
+                host = "localhost";
+                port = 3000;
+                path = "/";
+              };
+              initial_delay_seconds = 20;
+              period_seconds = 10;
+              timeout_seconds = 5;
+              success_threshold = 1;
+              failure_threshold = 3;
+            };
           };
 
           postgres = {
@@ -577,7 +627,7 @@
                 port = 8585;
                 path = "/";
               };
-              initial_delay_seconds = 5;
+              initial_delay_seconds = 20;
               period_seconds = 10;
               timeout_seconds = 2;
               success_threshold = 1;
