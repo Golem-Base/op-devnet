@@ -505,6 +505,7 @@
 
           postgres = {
             command = pkgs.writeShellScriptBin "postgres" ''
+              # Initialize database directory
               ${lib.getExe' pkgs.postgresql "initdb"} \
                   -D "$POSTGRES_DIR/data" \
                   --username=blockscout \
@@ -513,67 +514,29 @@
                   --encoding=UTF8 \
                   --data-checksums
 
+              # Start postgres server temporarily for setup
               ${lib.getExe' pkgs.postgresql "pg_ctl"} \
                   -D "$POSTGRES_DIR/data" \
                   -o "-k $POSTGRES_DIR/data -h 127.0.0.1 -p 5432" \
                   -w start
 
-              ${lib.getExe' pkgs.postgresql "createdb"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  blockscout
+              # Common psql parameters
+              PSQL_COMMON="-h 127.0.0.1 -p 5432 -U blockscout"
 
-              ${lib.getExe' pkgs.postgresql "createdb"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  blockscout_account
+              # Create databases
+              for DB in blockscout blockscout_account blockscout_api blockscout_mud; do
+                ${lib.getExe' pkgs.postgresql "createdb"} $PSQL_COMMON $DB
 
-              ${lib.getExe' pkgs.postgresql "psql"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  -d blockscout \
-                  -c "ALTER USER blockscout WITH SUPERUSER;"
+                # Grant superuser privileges to all databases
+                ${lib.getExe' pkgs.postgresql "psql"} $PSQL_COMMON -d $DB \
+                    -c "ALTER USER blockscout WITH SUPERUSER;"
+              done
 
-              ${lib.getExe' pkgs.postgresql "psql"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  -d blockscout_account \
-                  -c "ALTER USER blockscout WITH SUPERUSER;"
-
-              ${lib.getExe' pkgs.postgresql "createdb"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  blockscout_api
-
-              ${lib.getExe' pkgs.postgresql "createdb"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  blockscout_mud
-
-              # Grant superuser to these databases too
-              ${lib.getExe' pkgs.postgresql "psql"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  -d blockscout_api \
-                  -c "ALTER USER blockscout WITH SUPERUSER;"
-
-              ${lib.getExe' pkgs.postgresql "psql"} \
-                  -h 127.0.0.1 \
-                  -p 5432 \
-                  -U blockscout \
-                  -d blockscout_mud \
-                  -c "ALTER USER blockscout WITH SUPERUSER;"
-
+              # Stop temporary server
               ${lib.getExe' pkgs.postgresql "pg_ctl"} \
                   -D "$POSTGRES_DIR/data" stop
 
+              # Start postgres with final configuration
               ${lib.getExe' pkgs.postgresql "postgres"} \
                   -D "$POSTGRES_DIR/data" \
                   -k "$POSTGRES_DIR/data" \
@@ -593,6 +556,32 @@
               timeout_seconds = 5;
               success_threshold = 1;
               failure_threshold = 5;
+            };
+          };
+
+          pgweb = {
+            command = ''
+              ${lib.getExe pkgs.pgweb} \
+                --host=localhost \
+                --port=5432 \
+                --user=blockscout \
+                --pass=blockscout \
+                --db=blockscout \
+                --listen=8585 \
+                --bind=0.0.0.0
+            '';
+            depends_on."postgres".condition = "process_healthy";
+            readiness_probe = {
+              http_get = {
+                host = "localhost";
+                port = 8585;
+                path = "/";
+              };
+              initial_delay_seconds = 5;
+              period_seconds = 10;
+              timeout_seconds = 2;
+              success_threshold = 1;
+              failure_threshold = 3;
             };
           };
         };
