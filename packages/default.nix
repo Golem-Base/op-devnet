@@ -14,6 +14,7 @@
       dora = callPackage ./dora {};
 
       blockscout = callPackage ./blockscout {};
+      blockscout-frontend = callPackage ./blockscout/frontend.nix {};
 
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
 
