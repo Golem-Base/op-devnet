@@ -79,5 +79,6 @@ in
       homepage = "https://github.com/blockscout/frontend";
       license = licenses.gpl3;
       maintainers = with maintainers; [aldoborrero];
+      mainProgram = "blockscout-frontend";
     };
   })
