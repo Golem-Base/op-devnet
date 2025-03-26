@@ -1,0 +1,32 @@
+NEXT_PUBLIC_API_HOST="localhost"
+NEXT_PUBLIC_API_PORT="4040"
+NEXT_PUBLIC_API_PROTOCOL="http"
+
+NEXT_PUBLIC_APP_ENV="production"
+NEXT_PUBLIC_APP_HOST="localhost"
+NEXT_PUBLIC_APP_PORT="3000"
+NEXT_PUBLIC_APP_PROTOCOL="http"
+
+NEXT_PUBLIC_HOMEPAGE_CHARTS='["daily_txs"]'
+NEXT_PUBLIC_HOMEPAGE_STATS='["total_blocks","average_block_time","total_txs","wallet_addresses","gas_tracker"]'
+NEXT_PUBLIC_HOMEPAGE_PLATE_BACKGROUND="linear-gradient(90deg, rgb(232, 52, 53) 0%, rgb(139, 28, 232) 100%)"
+NEXT_PUBLIC_HOMEPAGE_PLATE_TEXT_COLOR="rgb(255, 255, 255)"
+
+NEXT_PUBLIC_IS_TESTNET="true"
+NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS="18"
+NEXT_PUBLIC_NETWORK_CURRENCY_NAME="Ether"
+NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL="ETH"
+NEXT_PUBLIC_NETWORK_ID="2345"
+NEXT_PUBLIC_NETWORK_NAME="Op Dev"
+NEXT_PUBLIC_NETWORK_SHORT_NAME="OpDev"
+NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE="validation"
+NEXT_PUBLIC_NETWORK_ICON="https://raw.githubusercontent.com/blockscout/frontend-configs/main/configs/network-icons/optimism.svg"
+NEXT_PUBLIC_NETWORK_ICON_DARK="https://raw.githubusercontent.com/blockscout/frontend-configs/main/configs/network-icons/optimism.svg"
+
+NEXT_PUBLIC_OG_DESCRIPTION="Op Blockchain Explorer"
+NEXT_PUBLIC_VIEWS_ADDRESS_IDENTICON_TYPE="jazzicon"
+
+NEXT_PUBLIC_TRANSACTION_INTERPRETATION_PROVIDER="blockscout"
+NEXT_PUBLIC_WEB3_WALLETS='["metamask"]'
+
+NEXT_PUBLIC_PROMOTE_BLOCKSCOUT_IN_TITLE="false"
