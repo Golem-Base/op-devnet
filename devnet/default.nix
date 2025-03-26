@@ -170,14 +170,14 @@
               ${geth} \
                 --networkid ${L1_CHAIN_ID}\
                 --http \
-                --http.api=admin,eth,net,debug,web3 \
+                --http.api=admin,eth,net,debug,web3,txpool \
                 --http.addr=127.0.0.1 \
                 --http.corsdomain="*" \
                 --http.port=${GETH_HTTP_PORT} \
                 --ws \
                 --ws.addr=127.0.0.1 \
                 --ws.port=${GETH_WS_PORT} \
-                --ws.api=admin,eth,net,debug,web3 \
+                --ws.api=admin,eth,net,debug,web3,txpool \
                 --metrics.port=${GETH_METRICS_PORT} \
                 --authrpc.vhosts="*" \
                 --authrpc.addr=127.0.0.1 \
@@ -413,7 +413,7 @@
           blockscout = {
             command = let
               # Create a wrapper script that sets up everything
-              blockscoutEnvScript = pkgs.writeShellScript "blockscout-env.sh" ''
+              blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
                 # Create a temporary directory for our configuration
                 export TEMP_CONFIG_DIR=$(mktemp -d)
                 trap 'rm -rf "$TEMP_CONFIG_DIR"' EXIT
@@ -424,9 +424,9 @@
 
                 # Copy config_helper.exs if it exists
                 cp -r "${self'.packages.blockscout}/apps" "$TEMP_CONFIG_DIR/apps"
-                cp "${self'.packages.blockscout}/config/runtime/prod.exs" "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
-                cp "${self'.packages.blockscout}/config/config.exs" "$TEMP_CONFIG_DIR/config/config.exs"
-                cp "${self'.packages.blockscout}/config/config_helper.exs" "$TEMP_CONFIG_DIR/config/config_helper.exs"
+                cat "${self'.packages.blockscout}/config/config.exs" > "$TEMP_CONFIG_DIR/config/config.exs"
+                cat "${self'.packages.blockscout}/config/runtime/prod.exs" > "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
+                cat "${self'.packages.blockscout}/config/config_helper.exs" > "$TEMP_CONFIG_DIR/config/config_helper.exs"
 
                 # Create required data directories
                 mkdir -p dets temp
@@ -467,15 +467,17 @@
                 export API_V1_READ_METHODS_DISABLED=false
                 export API_V1_WRITE_METHODS_DISABLED=false
                 export DISABLE_EXCHANGE_RATES=true
-                export DISABLE_INDEXER=false
-                export DISABLE_WEBAPP=true
+                export DISABLE_WEBAPP=false
                 export MUD_INDEXER_ENABLED=false
                 export NFT_MEDIA_HANDLER_ENABLED=false
 
-                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+                # Indexer settings
+                export DISABLE_INDEXER=false
                 export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
                 export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
                 export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
+                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+                export INDEXER_DISABLE_CATALOGED_TOKEN_UPDATER_FETCHER=true
 
                 # Set RELEASE_COOKIE if not already set
                 export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
@@ -489,56 +491,27 @@
                 # Add more informative errors
                 export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
 
+                # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it)
+                echo "" >> "$TEMP_CONFIG_DIR/config/config.exs"
+                echo "# Custom tzdata configuration" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
+                echo "config :tzdata, :autoupdate, :disabled" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
+
                 # Run the command that was passed to this script
                 exec "$@"
               '';
             in ''
-               echo "Starting database migration..."
-               ${blockscoutEnvScript} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+              echo "Starting database migration..."
+              ${blockscoutEnv} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
 
-               echo "Starting Blockscout..."
-              ${blockscoutEnvScript} ${blockscout} start
+              echo "Starting Blockscout..."
+              ${blockscoutEnv} ${blockscout} start
             '';
             depends_on."postgres".condition = "process_healthy";
             shutdown.signal = 9;
-            log_location = "$PRJ_DATA/pc/logs/blockscout";
           };
 
           blockscout-frontend = {
-            command = ''
-              export NEXT_PUBLIC_NETWORK_NAME="Op Dev"
-              export NEXT_PUBLIC_NETWORK_SHORT_NAME="OpDev"
-              export NEXT_PUBLIC_NETWORK_ID="${L1_CHAIN_ID}"
-              export NEXT_PUBLIC_NETWORK_CURRENCY_NAME="Ether"
-              export NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL="ETH"
-              export NEXT_PUBLIC_NETWORK_CURRENCY_DECIMALS="18"
-              export NEXT_PUBLIC_NETWORK_VERIFICATION_TYPE="validation"
-              export NEXT_PUBLIC_IS_TESTNET="true"
-
-              # API configuration for connecting to the Blockscout backend
-              export NEXT_PUBLIC_API_PROTOCOL="http"
-              export NEXT_PUBLIC_API_HOST="localhost"
-              export NEXT_PUBLIC_API_PORT="4040"
-
-              # General app configuration
-              export NEXT_PUBLIC_APP_PROTOCOL="http"
-              export NEXT_PUBLIC_APP_HOST="localhost"
-              export NEXT_PUBLIC_APP_PORT="3000"
-
-              # Features to enable
-              export NEXT_PUBLIC_VIEWS_ADDRESS_IDENTICON_TYPE="jazzicon"
-              export NEXT_PUBLIC_WEB3_WALLETS='["metamask"]'
-              export NEXT_PUBLIC_TRANSACTION_INTERPRETATION_PROVIDER="blockscout"
-              export NEXT_PUBLIC_HOMEPAGE_CHARTS='["daily_txs"]'
-              export NEXT_PUBLIC_HOMEPAGE_STATS='["total_blocks","average_block_time","total_txs","wallet_addresses","gas_tracker"]'
-
-              # UI Configuration
-              export NEXT_PUBLIC_PROMOTE_BLOCKSCOUT_IN_TITLE="false"
-              export NEXT_PUBLIC_OG_DESCRIPTION="Op Blockchain Explorer"
-
-              # Start the frontend
-              ${lib.getExe self'.packages.blockscout-frontend}
-            '';
+            command = lib.getExe self'.packages.blockscout-frontend;
             readiness_probe = {
               http_get = {
                 host = "localhost";
