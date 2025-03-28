@@ -105,7 +105,7 @@
 
         PC_DATA=$(mktemp -d)
         cd "$PC_DATA"
-        
+
         SYMLINK_PATH="$PROJECT_DIR/.devnet"
         if [ -L "$SYMLINK_PATH" ]; then
           unlink "$SYMLINK_PATH"
@@ -114,12 +114,6 @@
 
         # Create dir for storing logs
         mkdir -p "$PC_DATA"/logs
-
-        DEVNET_SYMLINK="$PROJECT_DIR/.devnet"
-        if [ -L "$DEVNET_SYMLINK" ] && [ -d "$DEVNET_SYMLINK" ]; then
-            rm "$DEVNET_SYMLINK"
-        fi
-        ln -s "$PCDAPWD" "$DEVNET_SYMLINK"
 
         EXECUTION_DIR="$PC_DATA/execution"
         CONSENSUS_DIR="$PC_DATA/consensus"
@@ -478,7 +472,7 @@
             depends_on."l1-check".condition = "process_completed_successfully";
             shutdown.signal = 9;
           };
-          
+
           blockscout = {
             command = let
               # Create a wrapper script that sets up everything
