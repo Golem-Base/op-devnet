@@ -98,6 +98,13 @@ in
       # Copy public directory to standalone output
       cp -r public $out/public
 
+      mkdir -p $out/public/icons
+      cp -r ${./ethereum.svg} $out/public/icons/sprite.svg
+
+      mkdir -p $out/public/assets/configs
+      cp -r ${./ethereum.svg} $out/public/assets/configs/network_logo_dark.svg
+      cp -r ${./ethereum.png} $out/public/assets/configs/network_icon_dark.png
+
       # Copy .next/static to standalone/.next/static
       mkdir -p $out/.next/static
       cp -r .next/static/. $out/.next/static/

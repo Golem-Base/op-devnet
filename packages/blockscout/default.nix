@@ -403,7 +403,7 @@ in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
-
+    patches = [./003_allow_updated_gas_oracle_header.patch];
     mixEnv = "prod";
     removeCookie = false;
 

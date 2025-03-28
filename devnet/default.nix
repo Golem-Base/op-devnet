@@ -173,6 +173,7 @@
         export POSTGRES_DIR
         export DEVNET_SYMLINK
         export BLOCKSCOUT_DIR
+        export PC_DATA
       '';
       cli.postHook = ''
         # Remove symlink
@@ -473,6 +474,58 @@
             shutdown.signal = 9;
           };
 
+          # blockscout-proxy = {
+          #   command = pkgs.writeShellScriptBin "blockscout-proxy" ''
+          #     NGINX_DIR="$PC_DATA/nginx"
+          #     mkdir -p "$NGINX_DIR/logs"
+          #     PIDFILE="$NGINX_DIR/nginx.pid"
+
+          #     cat > "$NGINX_DIR/nginx.conf" <<EOF
+          #     pid $PIDFILE;
+
+          #     events {}
+
+          #     error_log $NGINX_DIR/logs/error.log info;
+
+          #     http {
+          #       access_log $NGINX_DIR/logs/access.log;
+          #       server {
+          #         listen 8080;
+          #         server_name _;
+
+          #         location /frontend/ {
+          #           proxy_pass http://localhost:3000/;
+          #           proxy_set_header Host \$host;
+          #           proxy_set_header X-Real-IP \$remote_addr;
+          #         }
+
+          #         location /backend/ {
+          #           proxy_pass http://localhost:4040/;
+          #           proxy_set_header Host \$host;
+          #           proxy_set_header X-Real-IP \$remote_addr;
+          #         }
+          #       }
+          #     }
+          #     EOF
+          #     echo "Starting NGINX from $NGINX_DIR/nginx.conf"
+          #     cat "$NGINX_DIR/nginx.conf"
+
+          #     ${lib.getExe pkgs.nginx} -c "$NGINX_DIR/nginx.conf" -e "$NGINX_DIR/logs/error.log"
+
+          #     NGINX_PID=$(cat "$PIDFILE")
+          #     cleanup() {
+          #       echo "Cleaning up nginx (pid: $NGINX_PID)"
+          #       kill SIGTERM "$NGINX_PID" 2>/dev/null || true
+          #     }
+          #     trap cleanup EXIT
+
+          #     # Optional: wait forever or run your app
+          #     echo "NGINX running with PID $NGINX_PID"
+          #     sleep infinity
+          #   '';
+          #   shutdown.signal = 15;
+          # };
+
           blockscout = {
             command = let
               # Create a wrapper script that sets up everything
@@ -494,7 +547,12 @@
                 export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}"
                 export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}"
                 export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
-
+                export ETHEREUM_JSONRPC_HTTP_HEADERS='{
+                  "Access-Control-Allow-Origin": "http://localhost:3000",
+                  "Access-Control-Allow-Headers": "Authorization,Content-Type,updated-gas-oracle",
+                  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                  "Access-Control-Allow-Credentials": "true"
+                }'
                 # Set tzdata directory to a writable location
                 export TZDATA_DIR="$BLOCKSCOUT_DIR/tzdata"
 
@@ -530,6 +588,8 @@
                 export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
                 export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
                 export INDEXER_DISABLE_CATALOGED_TOKEN_UPDATER_FETCHER=true
+
+                export INDEXER_SYSTEM_MEMORY_PERCENTAGE=10
 
                 # Set RELEASE_COOKIE if not already set
                 export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
