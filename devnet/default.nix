@@ -474,58 +474,6 @@
             shutdown.signal = 9;
           };
 
-          # blockscout-proxy = {
-          #   command = pkgs.writeShellScriptBin "blockscout-proxy" ''
-          #     NGINX_DIR="$PC_DATA/nginx"
-          #     mkdir -p "$NGINX_DIR/logs"
-          #     PIDFILE="$NGINX_DIR/nginx.pid"
-
-          #     cat > "$NGINX_DIR/nginx.conf" <<EOF
-          #     pid $PIDFILE;
-
-          #     events {}
-
-          #     error_log $NGINX_DIR/logs/error.log info;
-
-          #     http {
-          #       access_log $NGINX_DIR/logs/access.log;
-          #       server {
-          #         listen 8080;
-          #         server_name _;
-
-          #         location /frontend/ {
-          #           proxy_pass http://localhost:3000/;
-          #           proxy_set_header Host \$host;
-          #           proxy_set_header X-Real-IP \$remote_addr;
-          #         }
-
-          #         location /backend/ {
-          #           proxy_pass http://localhost:4040/;
-          #           proxy_set_header Host \$host;
-          #           proxy_set_header X-Real-IP \$remote_addr;
-          #         }
-          #       }
-          #     }
-          #     EOF
-          #     echo "Starting NGINX from $NGINX_DIR/nginx.conf"
-          #     cat "$NGINX_DIR/nginx.conf"
-
-          #     ${lib.getExe pkgs.nginx} -c "$NGINX_DIR/nginx.conf" -e "$NGINX_DIR/logs/error.log"
-
-          #     NGINX_PID=$(cat "$PIDFILE")
-          #     cleanup() {
-          #       echo "Cleaning up nginx (pid: $NGINX_PID)"
-          #       kill SIGTERM "$NGINX_PID" 2>/dev/null || true
-          #     }
-          #     trap cleanup EXIT
-
-          #     # Optional: wait forever or run your app
-          #     echo "NGINX running with PID $NGINX_PID"
-          #     sleep infinity
-          #   '';
-          #   shutdown.signal = 15;
-          # };
-
           blockscout = {
             command = let
               # Create a wrapper script that sets up everything
