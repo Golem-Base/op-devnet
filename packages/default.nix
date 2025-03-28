@@ -32,12 +32,15 @@
       probe = callPackage ../probe {};
 
       deploy-optimism = callPackage ./deploy-optimism {op-deployer = op-deployer-v0_2_0_rc1;};
+      deploy-optimism-new = callPackage ./deploy-optimism {op-deployer = op-deployer-v0_3_0_rc5;};
 
       # op stack (supports contracts v2.0.0)
       op-batcher-v1_11_4 = callPackage ./op-batcher/op-batcher-v1_11_4.nix {};
       op-deployer-v0_2_0_rc1 = callPackage ./op-deployer/op-deployer-v0_2_0_rc1.nix {};
+      op-deployer-v0_3_0_rc5 = callPackage ./op-deployer/op-deployer-v0_3_0_rc5.nix {};
       op-geth-v1_101500_1 = callPackage ./op-geth/op-geth-v1_101500_1.nix {};
       op-node-v1_11_2 = callPackage ./op-node/op-node-v1_11_2.nix {};
+      op-node-v1_12_0 = callPackage ./op-node/op-node-v1_12_0.nix {};
       op-proposer-v1_10_0 = callPackage ./op-proposer/op-proposer-v1_10_0.nix {};
     };
 

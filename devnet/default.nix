@@ -22,12 +22,12 @@
     # L2
     op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
     op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
-    op-node = lib.getExe self'.packages.op-node-v1_11_2;
+    op-node = lib.getExe self'.packages.op-node-v1_12_0;
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
     probe = lib.getExe self'.packages.probe;
 
-    deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
+    deploy-optimism = "${self'.packages.deploy-optimism-new}/bin/deploy-optimism";
     # withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
     configs = pkgs.callPackage ./configs {};

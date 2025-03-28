@@ -30,10 +30,10 @@
     SEQUENCER=""
     PROPOSER=""
 
-    # These are constants for this particular release (see https://github.com/Golem-Base/infra/blob/8c642fde58b0a06690064ce4fa4645f168f2d265/justfile for more explanations)
-    L1_CONTRACTS_RELEASE="op-contracts/v2.0.0-rc.1"
-    L1_ARTIFACTS_CHECKSUM="1e788c684d48232a85cf5f5bd3876e83d6d2240c80588f60e160faca0133eac8"
-    L2_ARTIFACTS_LOCATOR="tag://op-contracts/v1.7.0-beta.1+l2-contracts"
+    ARTIFACTS_CHECKSUM="147b9fae70608da2975a01be3d98948306f89ba1930af7c917eea41a54d87cdb"
+
+    L1_CONTRACTS_RELEASE="op-contracts/v3.0.0-rc.2"
+    # L2_ARTIFACTS_LOCATOR="op-contracts/v3.0.0-rc.2"
     ABSOLUTE_PRESTATE_HASH="0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a"
     PROTOCOL_VERSION="0x0000000000000000000000000000000000000004000000000000000000000001"
 
@@ -65,9 +65,6 @@
       --sequencer <ADDRESS>                      -
       --proposer <ADDRESS>                       -
 
-      --l1-contracts-release <RELEASE>           L1 contracts release             (default: op-contracts/v2.0.0-rc.1)
-      --l1-artifacts-checksum <CHECKSUM>         L1 contracts commit hash         (default: 1e788c684d48232a85cf5f5bd3876e83d6d2240c80588f60e160faca0133eac8)
-      --l2-artifacts-locator <TAG>               Tagged L2 contracts artifacts    (default: tag://op-contracts/v1.7.0-beta.1+l2-contracts)
       --absolute-prestate-hash <HASH>            Absolute prestate hash           (default: 0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a)
       --protocol-version <HASH>                  Protocol version hash            (default: 0x0000000000000000000000000000000000000004000000000000000000000001)
 
@@ -77,7 +74,7 @@
     }
 
     OPTIONS=h
-    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,l1-contracts-release:,l1-artifacts-checksum:,l2-artifacts-locator:,absolute-prestate-hash:,protocol-version:
+    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,absolute-prestate-hash:,protocol-version:
 
     TEMP=$(getopt -o "$OPTIONS" --long "$LONGOPTS" -n "''${0##*/}" -- "$@") || {
       usage
@@ -168,17 +165,8 @@
         PROPOSER="$2"
         shift 2
         ;;
-      --l1-contracts-release)
-        L1_CONTRACTS_RELEASE="$2"
-        shift 2
-        ;;
-
-      --l1-artifacts-checksum)
-        L1_ARTIFACTS_CHECKSUM="$2"
-        shift 2
-        ;;
-      --l2-artifacts-locator)
-        L2_ARTIFACTS_LOCATOR="$2"
+      --proof-maturity-delay-seconds)
+        PROOF_MATURITY_DELAY_SECONDS="$2"
         shift 2
         ;;
       --absolute-prestate-hash)
@@ -325,11 +313,21 @@
       usage
       exit 1
     fi
+
+    if [[ -z "$PROOF_MATURITY_DELAY_SECONDS" ]]; then
+      echo "Error: --proof-maturity-delay-seconds is required." >&2
+      usage
+      exit 1
+    fi
+
   '';
 in
   pkgs.writeShellScriptBin "deploy-optimism" ''
     set -euo pipefail
     ${usage}
+
+    CACHE_DIR=$HOME/.local/share/optimism/cache
+    mkdir -p $CACHE_DIR
 
     INTENT_FILE=$WORK_DIR/intent.toml
     SUPERCHAIN_FILE=$WORK_DIR/superchain.json
@@ -339,7 +337,7 @@ in
     L1_ADDRESSES_FILE=$WORK_DIR/l1_addresses.json
     ROLLUP_FILE=$WORK_DIR/rollup.json
 
-    L1_ARTIFACTS_LOCATOR="https://storage.googleapis.com/oplabs-contract-artifacts/artifacts-v1-$L1_ARTIFACTS_CHECKSUM.tar.gz"
+    ARTIFACTS_LOCATOR="https://storage.googleapis.com/oplabs-contract-artifacts/artifacts-v1-$ARTIFACTS_CHECKSUM.tar.gz"
 
     echo "Initializing OP chain"
     ${op-deployer} init \
@@ -354,14 +352,15 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559Elasticity" -v 6
 
     echo "Setting contract locators"
-    ${dasel} put -f $INTENT_FILE -r toml -t string -v "$L1_ARTIFACTS_LOCATOR" "l1ContractsLocator"
-    ${dasel} put -f $INTENT_FILE -r toml -t string -v "$L2_ARTIFACTS_LOCATOR" "l2ContractsLocator"
+    ${dasel} put -f $INTENT_FILE -r toml -t string -v "$ARTIFACTS_LOCATOR" "l1ContractsLocator"
+    ${dasel} put -f $INTENT_FILE -r toml -t string -v "$ARTIFACTS_LOCATOR" "l2ContractsLocator"
 
     echo "Bootstraping superchain"
     ${op-deployer} bootstrap superchain \
+        --cache-dir $CACHE_DIR \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $RPC_URL \
-        --artifacts-locator $L1_ARTIFACTS_LOCATOR \
+        --artifacts-locator $ARTIFACTS_LOCATOR \
         --guardian $GUARDIAN \
         --recommended-protocol-version $PROTOCOL_VERSION \
         --required-protocol-version $PROTOCOL_VERSION \
@@ -393,31 +392,34 @@ in
     ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.proposer" -v "$PROPOSER"
 
     # bootstrap implementations
-    SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
-    SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainProxyAdmin" -w plain)
-    PROTOCOL_VERSIONS_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
+    SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".superchainConfigProxyAddress" -w plain)
+    SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".proxyAdminAddress" -w plain)
+    PROTOCOL_VERSIONS_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".protocolVersionsProxyAddress" -w plain)
 
     echo "Bootstrapping implementations"
     ${op-deployer} bootstrap implementations \
+        --cache-dir $CACHE_DIR \
         --superchain-config-proxy $SUPERCHAIN_CONFIG_PROXY \
         --protocol-versions-proxy $PROTOCOL_VERSIONS_PROXY \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $RPC_URL \
-        --artifacts-locator $L1_ARTIFACTS_LOCATOR \
+        --artifacts-locator $ARTIFACTS_LOCATOR \
         --l1-contracts-release $L1_CONTRACTS_RELEASE \
         --upgrade-controller $UPGRADE_CONTROLLER \
         --outfile $IMPLEMENTATIONS_FILE
 
     echo "Bootstraping proxy"
     ${op-deployer} bootstrap proxy \
+        --cache-dir $CACHE_DIR \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $RPC_URL \
-        --artifacts-locator $L1_ARTIFACTS_LOCATOR \
+        --artifacts-locator $ARTIFACTS_LOCATOR \
         --proxy-owner $L1_PROXY_ADMIN_OWNER \
         --outfile $PROXY_FILE
 
     echo "Applying config"
     ${op-deployer} apply \
+        --cache-dir $CACHE_DIR \
         --private-key $PRIVATE_KEY \
         --l1-rpc-url $RPC_URL \
         --workdir $WORK_DIR
