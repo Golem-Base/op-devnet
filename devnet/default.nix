@@ -105,6 +105,12 @@
 
         PC_DATA=$(mktemp -d)
         cd "$PC_DATA"
+        
+        SYMLINK_PATH="$PROJECT_DIR/.devnet"
+        if [ -L "$SYMLINK_PATH" ]; then
+          unlink "$SYMLINK_PATH"
+        fi
+        ln -s "$PC_DATA" "$SYMLINK_PATH"
 
         # Create dir for storing logs
         mkdir -p "$PC_DATA"/logs
@@ -113,7 +119,7 @@
         if [ -L "$DEVNET_SYMLINK" ] && [ -d "$DEVNET_SYMLINK" ]; then
             rm "$DEVNET_SYMLINK"
         fi
-        ln -s "$PWD" "$DEVNET_SYMLINK"
+        ln -s "$PCDAPWD" "$DEVNET_SYMLINK"
 
         EXECUTION_DIR="$PC_DATA/execution"
         CONSENSUS_DIR="$PC_DATA/consensus"
@@ -175,7 +181,8 @@
         export BLOCKSCOUT_DIR
       '';
       cli.postHook = ''
-        unlink "$DEVNET_SYMLINK"
+        # Remove symlink
+        unlink "$SYMLINK_PATH"
       '';
       settings = {
         processes = {
@@ -210,6 +217,7 @@
             '';
             shutdown.signal = 9;
           };
+
           l1-el = {
             command = ''
               ${geth} \
@@ -234,11 +242,13 @@
                 --nodiscover \
                 --maxpeers 0 \
                 --verbosity 5 \
+                --nousb=true \
                 --allow-insecure-unlock \
                 --password $GETH_PASSWORD
             '';
             shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-cl-beacon = {
             command = ''
@@ -264,6 +274,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-cl-validator = {
             command = ''
@@ -279,6 +290,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
           l1-check = {
             command = ''
@@ -289,6 +301,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           # L2
@@ -318,6 +331,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l1-check".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-init = {
@@ -329,6 +343,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l2-deploy".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-el = {
@@ -357,11 +372,13 @@
                 --authrpc.jwtsecret=$L2_JWT \
                 --rollup.disabletxpoolgossip=true \
                 --port=${OP_GETH_DISCOVERY_PORT} \
+                --nousb=true \
                 --db.engine=pebble \
                 --state.scheme=hash
             '';
             shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-cl-sequencer = {
@@ -387,6 +404,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-cl-batcher = {
@@ -411,6 +429,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-cl-proposer = {
@@ -431,6 +450,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           l2-check = {
@@ -446,6 +466,7 @@
             '';
             shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
+            shutdown.command = "9";
           };
 
           # misc
@@ -457,6 +478,7 @@
             depends_on."l1-check".condition = "process_completed_successfully";
             shutdown.signal = 9;
           };
+          
           blockscout = {
             command = let
               # Create a wrapper script that sets up everything
@@ -560,6 +582,7 @@
               success_threshold = 1;
               failure_threshold = 3;
             };
+            shutdown.signal = 9;
           };
 
           postgres = {

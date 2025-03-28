@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -191,6 +192,13 @@ func (b *Bridger) BridgeETHFromL1ToL2(ctx context.Context, privateKey *ecdsa.Pri
 	}
 	opts.Value = value
 
+	account := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	preL2Balance, err := b.l2Client.BalanceAt(ctx, account, nil)
+	if err != nil {
+		return fmt.Errorf("could not get ETH balance for %s: %w", account, err)
+	}
+
 	tx, err := transactions.PadGasEstimate(opts, 1.5, func(opts *bind.TransactOpts) (*types.Transaction, error) {
 		return b.l1StandardBridge.BridgeETH(opts, DEFAULT_RECEIVE_DEFAULT_GAS_LIMIT, []byte{})
 	})
@@ -234,7 +242,13 @@ func (b *Bridger) BridgeETHFromL1ToL2(ctx context.Context, privateKey *ecdsa.Pri
 		}
 	}
 
-	log.Info("successfully bridged to L2", "receipt", receipt)
+	postL2Balance, err := b.l2Client.BalanceAt(ctx, account, nil)
+	if err != nil {
+		return fmt.Errorf("could not get ETH balance for %s: %w", account, err)
+	}
+	diff := new(big.Int).Sub(postL2Balance, preL2Balance)
 
+	log.Info("successfully bridged to L2", "receipt", receipt)
+	log.Info("account balance", "account", account, "was", preL2Balance, "now", postL2Balance, "diff", diff)
 	return nil
 }
