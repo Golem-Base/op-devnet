@@ -247,159 +247,161 @@
           };
 
           # L2
-          # l2-deploy = {
-          #   command = ''
-          #     ${deploy-optimism} \
-          #       --rpc-url http://localhost:${GETH_HTTP_PORT} \
-          #       --private-key ${DEPLOYER_ACCOUNT.private-key} \
-          #       --l1-chain-id ${L1_CHAIN_ID} \
-          #       --l2-chain-id ${L2_CHAIN_ID} \
-          #       --work-dir $OP_DEPLOYER_DIR \
-          #       --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
-          #       --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
-          #       --guardian ${GUARDIAN.address} \
-          #       --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
-          #       --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
-          #       --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
-          #       --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
-          #       --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
-          #       --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
-          #       --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
-          #       --upgrade-controller ${UPGRADE_CONTROLLER.address} \
-          #       --batcher ${BATCHER.address} \
-          #       --challenger ${CHALLENGER.address} \
-          #       --sequencer ${SEQUENCER.address} \
-          #       --proposer ${PROPOSER.address}
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l1-check".condition = "process_completed_successfully";
-          # };
+          l2-deploy = {
+            command = ''
+              ${deploy-optimism} \
+                --rpc-url http://localhost:${GETH_HTTP_PORT} \
+                --private-key ${DEPLOYER_ACCOUNT.private-key} \
+                --l1-chain-id ${L1_CHAIN_ID} \
+                --l2-chain-id ${L2_CHAIN_ID} \
+                --work-dir $OP_DEPLOYER_DIR \
+                --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
+                --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
+                --guardian ${GUARDIAN.address} \
+                --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
+                --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
+                --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
+                --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
+                --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
+                --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
+                --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
+                --upgrade-controller ${UPGRADE_CONTROLLER.address} \
+                --batcher ${BATCHER.address} \
+                --challenger ${CHALLENGER.address} \
+                --sequencer ${SEQUENCER.address} \
+                --proposer ${PROPOSER.address}
+            '';
+            shutdown.signal = 9;
+            depends_on."l1-check".condition = "process_completed_successfully";
+          };
 
-          # l2-init = {
-          #   command = ''
-          #     ${op-geth} init \
-          #       --state.scheme=hash \
-          #       --datadir "$OP_GETH_DIR" \
-          #       $OP_GENESIS_CONFIG
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-deploy".condition = "process_completed_successfully";
-          # };
+          l2-init = {
+            command = ''
+              ${op-geth} init \
+                --state.scheme=hash \
+                --datadir "$OP_GETH_DIR" \
+                $OP_GENESIS_CONFIG
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-deploy".condition = "process_completed_successfully";
+          };
 
-          # l2-el = {
-          #   command = ''
-          #     ${op-geth} \
-          #       --networkid ${L2_CHAIN_ID} \
-          #       --datadir="$OP_GETH_DIR" \
-          #       --http \
-          #       --http.corsdomain="*" \
-          #       --http.vhosts="*" \
-          #       --http.addr=127.0.0.1 \
-          #       --http.port=${OP_GETH_HTTP_PORT} \
-          #       --http.api=web3,debug,eth,txpool,net,engine \
-          #       --ws \
-          #       --ws.addr=127.0.0.1 \
-          #       --ws.port=${OP_GETH_WS_PORT} \
-          #       --ws.origins="*" \
-          #       --ws.api=admin,debug,eth,txpool,net,engine,web3 \
-          #       --nodiscover \
-          #       --maxpeers=0 \
-          #       --syncmode=full \
-          #       --gcmode=archive \
-          #       --authrpc.vhosts="*" \
-          #       --authrpc.addr=127.0.0.1 \
-          #       --authrpc.port=${OP_GETH_AUTH_PORT} \
-          #       --authrpc.jwtsecret=$L2_JWT \
-          #       --rollup.disabletxpoolgossip=true \
-          #       --port=${OP_GETH_DISCOVERY_PORT} \
-          #       --db.engine=pebble \
-          #       --state.scheme=hash
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
+          l2-el = {
+            command = ''
+              ${op-geth} \
+                --networkid ${L2_CHAIN_ID} \
+                --datadir="$OP_GETH_DIR" \
+                --http \
+                --http.corsdomain="*" \
+                --http.vhosts="*" \
+                --http.addr=127.0.0.1 \
+                --http.port=${OP_GETH_HTTP_PORT} \
+                --http.api=web3,debug,eth,txpool,net,engine \
+                --ws \
+                --ws.addr=127.0.0.1 \
+                --ws.port=${OP_GETH_WS_PORT} \
+                --ws.origins="*" \
+                --ws.api=admin,debug,eth,txpool,net,engine,web3 \
+                --nodiscover \
+                --maxpeers=0 \
+                --syncmode=full \
+                --gcmode=archive \
+                --authrpc.vhosts="*" \
+                --authrpc.addr=127.0.0.1 \
+                --authrpc.port=${OP_GETH_AUTH_PORT} \
+                --authrpc.jwtsecret=$L2_JWT \
+                --rollup.disabletxpoolgossip=true \
+                --port=${OP_GETH_DISCOVERY_PORT} \
+                --db.engine=pebble \
+                --state.scheme=hash
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
 
-          # l2-cl-sequencer = {
-          #   command = ''
-          #     ${op-node} \
-          #       --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
-          #       --l1.trustrpc \
-          #       --l1.rpckind=debug_geth \
-          #       --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
-          #       --l2.jwt-secret=$L2_JWT \
-          #       --l2.enginekind=geth \
-          #       --rpc.addr=127.0.0.1 \
-          #       --rpc.port=${OP_NODE_RPC_PORT} \
-          #       --rpc.enable-admin \
-          #       --syncmode=consensus-layer \
-          #       --sequencer.enabled \
-          #       --sequencer.l1-confs=5 \
-          #       --verifier.l1-confs=4 \
-          #       --rollup.config=$OP_ROLLUP_CONFIG \
-          #       --rollup.load-protocol-versions=true \
-          #       --p2p.disable
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
+          l2-cl-sequencer = {
+            command = ''
+              ${op-node} \
+                --l1=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l1.beacon=http://127.0.0.1:${BEACON_HTTP_PORT} \
+                --l1.trustrpc \
+                --l1.rpckind=debug_geth \
+                --l2=http://127.0.0.1:${OP_GETH_AUTH_PORT} \
+                --l2.jwt-secret=$L2_JWT \
+                --l2.enginekind=geth \
+                --rpc.addr=127.0.0.1 \
+                --rpc.port=${OP_NODE_RPC_PORT} \
+                --rpc.enable-admin \
+                --syncmode=consensus-layer \
+                --sequencer.enabled \
+                --sequencer.l1-confs=5 \
+                --verifier.l1-confs=4 \
+                --rollup.config=$OP_ROLLUP_CONFIG \
+                --rollup.load-protocol-versions=true \
+                --p2p.disable
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
 
-          # l2-cl-batcher = {
-          #   command = ''
-          #     ${op-batcher} \
-          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-          #       --poll-interval=1s \
-          #       --data-availability-type=blobs \
-          #       --sub-safety-margin=6 \
-          #       --num-confirmations=1 \
-          #       --safe-abort-nonce-too-low-count=3 \
-          #       --resubmission-timeout=30s \
-          #       --rpc.addr=127.0.0.1 \
-          #       --rpc.port=${OP_BATCHER_RPC_PORT} \
-          #       --rpc.enable-admin \
-          #       --max-channel-duration=5 \
-          #       --private-key=${BATCHER.private-key} \
-          #       --wait-node-sync \
-          #       --throttle-threshold=0
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
-          # l2-cl-proposer = {
-          #   # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
-          #   # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false it waits until those
-          #   # blocks are finalized before making proposals to them which is approx 2 epochs
-          #   command = ''
-          #     ${op-proposer} \
-          #       --allow-non-finalized=true \
-          #       --poll-interval=12s \
-          #       --rpc.port=${OP_PROPOSER_RPC_PORT} \
-          #       --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
-          #       --game-factory-address="$(${jq} -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
-          #       --game-type 1 \
-          #       --proposal-interval=10s \
-          #       --private-key=${PROPOSER.private-key} \
-          #       --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
-          # l2-check = {
-          #   command = ''
-          #     ${probe} bridgeEthAndFinalize \
-          #       --private-key=${USER_ACCOUNT.private-key} \
-          #       --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
-          #       --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
-          #       --optimism-portal-address=$(${jq} -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG) \
-          #       --l1-standard-bridge-address=$(${jq} -r ".opChainDeployments.[0].l1StandardBridgeProxyAddress" $OP_STATE_CONFIG) \
-          #       --l2-standard-bridge-address="0x4200000000000000000000000000000000000010" \
-          #       --value=$(cast 2w 10000)
-          #   '';
-          #   shutdown.signal = 9;
-          #   depends_on."l2-init".condition = "process_completed_successfully";
-          # };
+          l2-cl-batcher = {
+            command = ''
+              ${op-batcher} \
+                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l2-eth-rpc=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+                --poll-interval=1s \
+                --data-availability-type=blobs \
+                --sub-safety-margin=6 \
+                --num-confirmations=1 \
+                --safe-abort-nonce-too-low-count=3 \
+                --resubmission-timeout=30s \
+                --rpc.addr=127.0.0.1 \
+                --rpc.port=${OP_BATCHER_RPC_PORT} \
+                --rpc.enable-admin \
+                --max-channel-duration=5 \
+                --private-key=${BATCHER.private-key} \
+                --wait-node-sync \
+                --throttle-threshold=0
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
+
+          l2-cl-proposer = {
+            # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
+            # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false it waits until those
+            # blocks are finalized before making proposals to them which is approx 2 epochs
+            command = ''
+              ${op-proposer} \
+                --allow-non-finalized=true \
+                --poll-interval=12s \
+                --rpc.port=${OP_PROPOSER_RPC_PORT} \
+                --rollup-rpc=http://127.0.0.1:${OP_NODE_RPC_PORT} \
+                --game-factory-address="$(${jq} -r ".opChainDeployments.[0].disputeGameFactoryProxyAddress" $OP_STATE_CONFIG)" \
+                --game-type 1 \
+                --proposal-interval=10s \
+                --private-key=${PROPOSER.private-key} \
+                --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
+
+          l2-check = {
+            command = ''
+              ${probe} bridgeEthAndFinalize \
+                --private-key=${USER_ACCOUNT.private-key} \
+                --l1-rpc-url=http://127.0.0.1:${GETH_HTTP_PORT} \
+                --l2-rpc-url=http://127.0.0.1:${OP_GETH_HTTP_PORT} \
+                --optimism-portal-address=$(${jq} -r ".opChainDeployments.[0].optimismPortalProxyAddress" $OP_STATE_CONFIG) \
+                --l1-standard-bridge-address=$(${jq} -r ".opChainDeployments.[0].l1StandardBridgeProxyAddress" $OP_STATE_CONFIG) \
+                --l2-standard-bridge-address="0x4200000000000000000000000000000000000010" \
+                --value=$(cast 2w 10000)
+            '';
+            shutdown.signal = 9;
+            depends_on."l2-init".condition = "process_completed_successfully";
+          };
 
           # misc
           dora = {
