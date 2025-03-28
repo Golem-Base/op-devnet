@@ -20,8 +20,14 @@
     prysm-validator = "${self'.packages.prysm}/bin/validator";
 
     # L2
+    op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
+    op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
+    op-node = lib.getExe self'.packages.op-node-v1_11_2;
+    op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
     probe = lib.getExe self'.packages.probe;
+
+    deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
     # withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
     configs = pkgs.callPackage ./configs {};
@@ -33,6 +39,7 @@
     blockscout = lib.getExe self'.packages.blockscout;
 
     L1_CHAIN_ID = "2345";
+    L2_CHAIN_ID = "3456";
 
     # L1 specific config options
     GETH_HTTP_PORT = "8545";
@@ -45,7 +52,34 @@
     VALIDATOR_HTTP_PORT = "7000";
 
     # OP-specific ports
+    OP_GETH_HTTP_PORT = "9545";
+    OP_GETH_WS_PORT = "9546";
+    OP_GETH_AUTH_PORT = "9551";
+    OP_GETH_DISCOVERY_PORT = "40404";
+    OP_NODE_RPC_PORT = "7545";
+    OP_BATCHER_RPC_PORT = "8548";
+    OP_PROPOSER_RPC_PORT = "8560";
+
+    USER_ACCOUNT = lib.elemAt accounts 0;
     SEEDER_ACCOUNT = lib.elemAt accounts 1;
+    DEPLOYER_ACCOUNT = lib.elemAt accounts 2;
+
+    SEQUENCER = lib.elemAt accounts 3;
+    BATCHER = lib.elemAt accounts 4;
+    PROPOSER = lib.elemAt accounts 5;
+    CHALLENGER = lib.elemAt accounts 6;
+
+    SUPERCHAIN_PROXY_ADMIN_OWNER = lib.elemAt accounts 7;
+    PROTOCOL_VERSIONS_OWNER = lib.elemAt accounts 8;
+    GUARDIAN = lib.elemAt accounts 9;
+    BASE_FEE_VAULT_RECIPIENT = lib.elemAt accounts 10;
+    L1_FEE_VAULT_RECIPIENT = lib.elemAt accounts 11;
+    SEQUENCER_FEE_VAULT_RECIPIENT = lib.elemAt accounts 12;
+    L1_PROXY_ADMIN_OWNER = lib.elemAt accounts 13;
+    L2_PROXY_ADMIN_OWNER = lib.elemAt accounts 14;
+    SYSTEM_CONFIG_OWNER = lib.elemAt accounts 15;
+    UNSAFE_BLOCK_SIGNER = lib.elemAt accounts 16;
+    UPGRADE_CONTROLLER = lib.elemAt accounts 17;
 
     NUM_VALIDATORS = "64";
     GENESIS_TIME_DELAY = "0";
@@ -68,10 +102,12 @@
       # We always create a tmp working directory
       cli.preHook = ''
         PROJECT_DIR="$PWD"
-        cd "$(mktemp -d)"
+
+        PC_DATA=$(mktemp -d)
+        cd "$PC_DATA"
 
         # Create dir for storing logs
-        mkdir -p $PROJECT_DIR/logs
+        mkdir -p "$PC_DATA"/logs
 
         DEVNET_SYMLINK="$PROJECT_DIR/.devnet"
         if [ -L "$DEVNET_SYMLINK" ] && [ -d "$DEVNET_SYMLINK" ]; then
@@ -79,21 +115,21 @@
         fi
         ln -s "$PWD" "$DEVNET_SYMLINK"
 
-        EXECUTION_DIR="$PROJECT_DIR/execution"
-        CONSENSUS_DIR="$PROJECT_DIR/consensus"
-        DORA_DIR="$PROJECT_DIR/dora"
-        POSTGRES_DIR="$PROJECT_DIR/postgres"
-        OP_DIR="$PROJECT_DIR/op"
-        OP_DEPLOYER_DIR="$OP_DIR/deployer"
+        EXECUTION_DIR="$PC_DATA/execution"
+        CONSENSUS_DIR="$PC_DATA/consensus"
+        DORA_DIR="$PC_DATA/dora"
+        POSTGRES_DIR="$PC_DATA/postgres"
+        OP_DIR="$PC_DATA/op"
+        OP_DEPLOYER_DIR="$PC_DATA/deployer"
 
         mkdir -p "$EXECUTION_DIR"
         mkdir -p "$CONSENSUS_DIR/{beacon,validator}"
         mkdir -p "$DORA_DIR"
         mkdir -p "$OP_DEPLOYER_DIR"
 
-        L1_JWT=$PROJECT_DIR/l1-jwt.txt
-        L2_JWT=$PROJECT_DIR/l2-jwt.txt
-        GETH_PASSWORD=$PROJECT_DIR/password.txt
+        L1_JWT=$PC_DATA/l1-jwt.txt
+        L2_JWT=$PC_DATA/l2-jwt.txt
+        GETH_PASSWORD=$PC_DATA/password.txt
 
         touch "$GETH_PASSWORD"
 
@@ -103,11 +139,14 @@
         DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
-        POSTGRES_DIR="$PROJECT_DIR/postgres"
+        POSTGRES_DIR="$PC_DATA/postgres"
         mkdir -p "$POSTGRES_DIR"
 
-        BLOCKSCOUT_RELEASE_DIR="$PROJECT_DIR/blockscout/release"
-        mkdir -p "$BLOCKSCOUT_RELEASE_DIR"
+        BLOCKSCOUT_DIR="$PC_DATA/blockscout"
+        mkdir -p "$BLOCKSCOUT_DIR/config/runtime"
+        mkdir -p "$BLOCKSCOUT_DIR/tzdata"
+        mkdir -p "$BLOCKSCOUT_DIR/dets"
+        mkdir -p "$BLOCKSCOUT_DIR/temp"
 
         OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
         OP_L1_ADDRESSES_FILE="$OP_DEPLOYER_DIR/l1_addresses.json"
@@ -133,12 +172,11 @@
         export OP_L1_ADDRESSES_FILE
         export POSTGRES_DIR
         export DEVNET_SYMLINK
-        export BLOCKSCOUT_RELEASE_DIR
+        export BLOCKSCOUT_DIR
       '';
       cli.postHook = ''
         unlink "$DEVNET_SYMLINK"
       '';
-
       settings = {
         processes = {
           # L1
@@ -423,23 +461,14 @@
             command = let
               # Create a wrapper script that sets up everything
               blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
-                trap 'rm -rf "$BLOCKSCOUT_RELEASE_DIR"' EXIT
+                # Change to the blockscout directory so relative paths work
+                cd "$BLOCKSCOUT_DIR"
 
-                # Create directory structure
-                mkdir -p "$BLOCKSCOUT_RELEASE_DIR/config/runtime"
-                mkdir -p "$BLOCKSCOUT_RELEASE_DIR/tzdata"
-
-                # Copy config_helper.exs if it exists
-                cp -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_RELEASE_DIR/apps"
-                cat "${self'.packages.blockscout}/config/config.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/config.exs"
-                cat "${self'.packages.blockscout}/config/runtime/prod.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/runtime/prod.exs"
-                cat "${self'.packages.blockscout}/config/config_helper.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/config_helper.exs"
-
-                # Create required data directories
-                mkdir -p dets temp
-
-                # Change to the temp directory so relative paths work
-                cd "$TEMP_CONFIG_DIR"
+                # Copy necessary files to customize blockscout
+                cp --no-preserve=mode -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_DIR"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/config.exs" "$BLOCKSCOUT_DIR/config/config.exs"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/runtime/prod.exs" "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/config_helper.exs" "$BLOCKSCOUT_DIR/config/config_helper.exs"
 
                 # Database Configuration - explicit database settings
                 export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable"
@@ -451,7 +480,7 @@
                 export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
 
                 # Set tzdata directory to a writable location
-                export TZDATA_DIR="$TEMP_CONFIG_DIR/tzdata"
+                export TZDATA_DIR="$BLOCKSCOUT_DIR/tzdata"
 
                 # SSL Configuration
                 export ECTO_USE_SSL=false
@@ -493,15 +522,15 @@
                 export RUNTIME_CONFIG=true
 
                 # Export config directory location so Blockscout can find it
-                export RELEASE_CONFIG_DIR="$TEMP_CONFIG_DIR/config"
+                export RELEASE_CONFIG_DIR="$BLOCKSCOUT_DIR/config"
 
                 # Add more informative errors
                 export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
 
                 # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it and we have issues with /nix/store perms)
-                echo "" >> "$TEMP_CONFIG_DIR/config/config.exs"
-                echo "# Custom tzdata configuration" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
-                echo "config :tzdata, :autoupdate, :disabled" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
+                echo "" >> "$BLOCKSCOUT_DIR/config/config.exs"
+                echo "# Custom tzdata configuration" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+                echo "config :tzdata, :autoupdate, :disabled" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
 
                 # Run the command that was passed to this script
                 exec "$@"
