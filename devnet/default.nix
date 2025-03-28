@@ -70,17 +70,20 @@
         PROJECT_DIR="$PWD"
         cd "$(mktemp -d)"
 
+        # Create dir for storing logs
+        mkdir -p $PROJECT_DIR/logs
+
         DEVNET_SYMLINK="$PROJECT_DIR/.devnet"
         if [ -L "$DEVNET_SYMLINK" ] && [ -d "$DEVNET_SYMLINK" ]; then
             rm "$DEVNET_SYMLINK"
         fi
         ln -s "$PWD" "$DEVNET_SYMLINK"
 
-        EXECUTION_DIR="$PWD/execution"
-        CONSENSUS_DIR="$PWD/consensus"
-        DORA_DIR="$PWD/dora"
-        POSTGRES_DIR="$PWD/postgres"
-        OP_DIR="$PWD/op"
+        EXECUTION_DIR="$PROJECT_DIR/execution"
+        CONSENSUS_DIR="$PROJECT_DIR/consensus"
+        DORA_DIR="$PROJECT_DIR/dora"
+        POSTGRES_DIR="$PROJECT_DIR/postgres"
+        OP_DIR="$PROJECT_DIR/op"
         OP_DEPLOYER_DIR="$OP_DIR/deployer"
 
         mkdir -p "$EXECUTION_DIR"
@@ -88,9 +91,9 @@
         mkdir -p "$DORA_DIR"
         mkdir -p "$OP_DEPLOYER_DIR"
 
-        L1_JWT=$PWD/l1-jwt.txt
-        L2_JWT=$PWD/l2-jwt.txt
-        GETH_PASSWORD=$PWD/password.txt
+        L1_JWT=$PROJECT_DIR/l1-jwt.txt
+        L2_JWT=$PROJECT_DIR/l2-jwt.txt
+        GETH_PASSWORD=$PROJECT_DIR/password.txt
 
         touch "$GETH_PASSWORD"
 
@@ -100,8 +103,11 @@
         DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
         cp ${dora-config} "$DORA_CONFIG_PATH"
 
-        POSTGRES_DIR="$PWD/postgres"
+        POSTGRES_DIR="$PROJECT_DIR/postgres"
         mkdir -p "$POSTGRES_DIR"
+
+        BLOCKSCOUT_RELEASE_DIR="$PROJECT_DIR/blockscout/release"
+        mkdir -p "$BLOCKSCOUT_RELEASE_DIR"
 
         OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
         OP_L1_ADDRESSES_FILE="$OP_DEPLOYER_DIR/l1_addresses.json"
@@ -127,6 +133,7 @@
         export OP_L1_ADDRESSES_FILE
         export POSTGRES_DIR
         export DEVNET_SYMLINK
+        export BLOCKSCOUT_RELEASE_DIR
       '';
       cli.postHook = ''
         unlink "$DEVNET_SYMLINK"
@@ -416,19 +423,17 @@
             command = let
               # Create a wrapper script that sets up everything
               blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
-                # Create a temporary directory for our configuration
-                export TEMP_CONFIG_DIR=$(mktemp -d)
-                trap 'rm -rf "$TEMP_CONFIG_DIR"' EXIT
+                trap 'rm -rf "$BLOCKSCOUT_RELEASE_DIR"' EXIT
 
                 # Create directory structure
-                mkdir -p "$TEMP_CONFIG_DIR/config/runtime"
-                mkdir -p "$TEMP_CONFIG_DIR/tzdata"
+                mkdir -p "$BLOCKSCOUT_RELEASE_DIR/config/runtime"
+                mkdir -p "$BLOCKSCOUT_RELEASE_DIR/tzdata"
 
                 # Copy config_helper.exs if it exists
-                cp -r "${self'.packages.blockscout}/apps" "$TEMP_CONFIG_DIR/apps"
-                cat "${self'.packages.blockscout}/config/config.exs" > "$TEMP_CONFIG_DIR/config/config.exs"
-                cat "${self'.packages.blockscout}/config/runtime/prod.exs" > "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
-                cat "${self'.packages.blockscout}/config/config_helper.exs" > "$TEMP_CONFIG_DIR/config/config_helper.exs"
+                cp -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_RELEASE_DIR/apps"
+                cat "${self'.packages.blockscout}/config/config.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/config.exs"
+                cat "${self'.packages.blockscout}/config/runtime/prod.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/runtime/prod.exs"
+                cat "${self'.packages.blockscout}/config/config_helper.exs" > "$BLOCKSCOUT_RELEASE_DIR/config/config_helper.exs"
 
                 # Create required data directories
                 mkdir -p dets temp
@@ -493,7 +498,7 @@
                 # Add more informative errors
                 export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
 
-                # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it)
+                # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it and we have issues with /nix/store perms)
                 echo "" >> "$TEMP_CONFIG_DIR/config/config.exs"
                 echo "# Custom tzdata configuration" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
                 echo "config :tzdata, :autoupdate, :disabled" >> "$TEMP_CONFIG_DIR/config/runtime/prod.exs"
