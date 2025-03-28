@@ -36,13 +36,14 @@
 
     # explorers
     dora = lib.getExe self'.packages.dora;
-    # blockscout = lib.getExe self'.packages.blockscout;
+    blockscout = lib.getExe self'.packages.blockscout;
 
     L1_CHAIN_ID = "2345";
     L2_CHAIN_ID = "3456";
 
     # L1 specific config options
     GETH_HTTP_PORT = "8545";
+    GETH_WS_PORT = "8546";
     GETH_AUTH_PORT = "8551";
     GETH_METRICS_PORT = "8300";
     BEACON_HTTP_PORT = "4000";
@@ -101,28 +102,34 @@
       # We always create a tmp working directory
       cli.preHook = ''
         PROJECT_DIR="$PWD"
-        cd "$(mktemp -d)"
-        SYMLINK_PATH="$PROJECT_DIR/.devnet"
 
+        PC_DATA=$(mktemp -d)
+        cd "$PC_DATA"
+
+        SYMLINK_PATH="$PROJECT_DIR/.devnet"
         if [ -L "$SYMLINK_PATH" ]; then
           unlink "$SYMLINK_PATH"
         fi
-        ln -s "$PWD" "$SYMLINK_PATH"
+        ln -s "$PC_DATA" "$SYMLINK_PATH"
 
-        EXECUTION_DIR="$PWD/execution"
-        CONSENSUS_DIR="$PWD/consensus"
-        DORA_DIR="$PWD/dora"
-        OP_DIR="$PWD/op"
-        OP_DEPLOYER_DIR="$OP_DIR/deployer"
+        # Create dir for storing logs
+        mkdir -p "$PC_DATA"/logs
+
+        EXECUTION_DIR="$PC_DATA/execution"
+        CONSENSUS_DIR="$PC_DATA/consensus"
+        DORA_DIR="$PC_DATA/dora"
+        POSTGRES_DIR="$PC_DATA/postgres"
+        OP_DIR="$PC_DATA/op"
+        OP_DEPLOYER_DIR="$PC_DATA/deployer"
 
         mkdir -p "$EXECUTION_DIR"
         mkdir -p "$CONSENSUS_DIR/{beacon,validator}"
         mkdir -p "$DORA_DIR"
         mkdir -p "$OP_DEPLOYER_DIR"
 
-        L1_JWT=$PWD/l1-jwt.txt
-        L2_JWT=$PWD/l2-jwt.txt
-        GETH_PASSWORD=$PWD/password.txt
+        L1_JWT=$PC_DATA/l1-jwt.txt
+        L2_JWT=$PC_DATA/l2-jwt.txt
+        GETH_PASSWORD=$PC_DATA/password.txt
 
         touch "$GETH_PASSWORD"
 
@@ -131,6 +138,15 @@
 
         DORA_CONFIG_PATH="$DORA_DIR/config.yaml"
         cp ${dora-config} "$DORA_CONFIG_PATH"
+
+        POSTGRES_DIR="$PC_DATA/postgres"
+        mkdir -p "$POSTGRES_DIR"
+
+        BLOCKSCOUT_DIR="$PC_DATA/blockscout"
+        mkdir -p "$BLOCKSCOUT_DIR/config/runtime"
+        mkdir -p "$BLOCKSCOUT_DIR/tzdata"
+        mkdir -p "$BLOCKSCOUT_DIR/dets"
+        mkdir -p "$BLOCKSCOUT_DIR/temp"
 
         OP_GENESIS_CONFIG="$OP_DEPLOYER_DIR/genesis.json"
         OP_L1_ADDRESSES_FILE="$OP_DEPLOYER_DIR/l1_addresses.json"
@@ -154,6 +170,10 @@
         export OP_IMPLEMENTATIONS_CONFIG
         export OP_STATE_CONFIG
         export OP_L1_ADDRESSES_FILE
+        export POSTGRES_DIR
+        export DEVNET_SYMLINK
+        export BLOCKSCOUT_DIR
+        export PC_DATA
       '';
       cli.postHook = ''
         # Remove symlink
@@ -190,7 +210,7 @@
 
               echo "$PWD"
             '';
-            shutdown.command = "9";
+            shutdown.signal = 9;
           };
 
           l1-el = {
@@ -198,10 +218,14 @@
               ${geth} \
                 --networkid ${L1_CHAIN_ID}\
                 --http \
-                --http.api=admin,eth,net,debug,web3 \
+                --http.api=admin,eth,net,debug,web3,txpool \
                 --http.addr=127.0.0.1 \
                 --http.corsdomain="*" \
                 --http.port=${GETH_HTTP_PORT} \
+                --ws \
+                --ws.addr=127.0.0.1 \
+                --ws.port=${GETH_WS_PORT} \
+                --ws.api=admin,eth,net,debug,web3,txpool \
                 --metrics.port=${GETH_METRICS_PORT} \
                 --authrpc.vhosts="*" \
                 --authrpc.addr=127.0.0.1 \
@@ -217,6 +241,7 @@
                 --allow-insecure-unlock \
                 --password $GETH_PASSWORD
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -242,6 +267,7 @@
                 --minimum-peers-per-subnet=0 \
                 --verbosity=info
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -257,6 +283,7 @@
                 --chain-config-file=${chain-config} \
                 --force-clear-db
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -267,6 +294,7 @@
                 --private-key ${SEEDER_ACCOUNT.private-key} \
                 --value=$(cast 2w 1)
             '';
+            shutdown.signal = 9;
             depends_on."l1-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -296,6 +324,7 @@
                 --sequencer ${SEQUENCER.address} \
                 --proposer ${PROPOSER.address}
             '';
+            shutdown.signal = 9;
             depends_on."l1-check".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -307,6 +336,7 @@
                 --datadir "$OP_GETH_DIR" \
                 $OP_GENESIS_CONFIG
             '';
+            shutdown.signal = 9;
             depends_on."l2-deploy".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -341,6 +371,7 @@
                 --db.engine=pebble \
                 --state.scheme=hash
             '';
+            shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -366,6 +397,7 @@
                 --rollup.load-protocol-versions=true \
                 --p2p.disable
             '';
+            shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -390,9 +422,11 @@
                 --wait-node-sync \
                 --throttle-threshold=0
             '';
+            shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
+
           l2-cl-proposer = {
             # `--allow-non-finalized=true` will shorten the amount of time it takes until proposals are made as it will
             # eagerly observe for batch submissions on unfinalized L1 blocks. When set to false it waits until those
@@ -409,9 +443,11 @@
                 --private-key=${PROPOSER.private-key} \
                 --l1-eth-rpc=http://127.0.0.1:${GETH_HTTP_PORT}
             '';
+            shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
+
           l2-check = {
             command = ''
               ${probe} bridgeEthAndFinalize \
@@ -423,6 +459,7 @@
                 --l2-standard-bridge-address="0x4200000000000000000000000000000000000010" \
                 --value=$(cast 2w 10000)
             '';
+            shutdown.signal = 9;
             depends_on."l2-init".condition = "process_completed_successfully";
             shutdown.command = "9";
           };
@@ -434,7 +471,202 @@
               ${dora} -config "$DORA_CONFIG_PATH"
             '';
             depends_on."l1-check".condition = "process_completed_successfully";
-            shutdown.command = "9";
+            shutdown.signal = 9;
+          };
+
+          blockscout = {
+            command = let
+              # Create a wrapper script that sets up everything
+              blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
+                # Change to the blockscout directory so relative paths work
+                cd "$BLOCKSCOUT_DIR"
+
+                # Copy necessary files to customize blockscout
+                cp --no-preserve=mode -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_DIR"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/config.exs" "$BLOCKSCOUT_DIR/config/config.exs"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/runtime/prod.exs" "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+                cp --no-preserve=mode "${self'.packages.blockscout}/config/config_helper.exs" "$BLOCKSCOUT_DIR/config/config_helper.exs"
+
+                # Database Configuration - explicit database settings
+                export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable"
+
+                # Ethereum JSON RPC Configuration
+                export ETHEREUM_JSONRPC_VARIANT=geth
+                export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}"
+                export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}"
+                export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
+                export ETHEREUM_JSONRPC_HTTP_HEADERS='{
+                  "Access-Control-Allow-Origin": "http://localhost:3000",
+                  "Access-Control-Allow-Headers": "Authorization,Content-Type,updated-gas-oracle",
+                  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                  "Access-Control-Allow-Credentials": "true"
+                }'
+                # Set tzdata directory to a writable location
+                export TZDATA_DIR="$BLOCKSCOUT_DIR/tzdata"
+
+                # SSL Configuration
+                export ECTO_USE_SSL=false
+
+                # Basic Configuration
+                export BLOCKSCOUT_PROTOCOL="http"
+                export BLOCKSCOUT_HOST="localhost"
+                export PORT="4040"
+                export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN"
+
+                # Chain Configuration
+                export CHAIN_ID=${L1_CHAIN_ID}
+                export SUBNETWORK="Local Testnet"
+                export NETWORK="L1"
+                export CHAIN_TYPE="ethereum"
+
+                # Runtime Behavior Configuration
+                export ACCOUNT_ENABLED=false
+                export ADMIN_PANEL_ENABLED=true
+                export API_V1_READ_METHODS_DISABLED=false
+                export API_V1_WRITE_METHODS_DISABLED=false
+                export DISABLE_EXCHANGE_RATES=true
+                export DISABLE_WEBAPP=false
+                export MUD_INDEXER_ENABLED=false
+                export NFT_MEDIA_HANDLER_ENABLED=false
+
+                # Indexer settings
+                export DISABLE_INDEXER=false
+                export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
+                export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
+                export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
+                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+                export INDEXER_DISABLE_CATALOGED_TOKEN_UPDATER_FETCHER=true
+
+                export INDEXER_SYSTEM_MEMORY_PERCENTAGE=10
+
+                # Set RELEASE_COOKIE if not already set
+                export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
+
+                # Set RUNTIME_CONFIG=true to ensure it reads the runtime config
+                export RUNTIME_CONFIG=true
+
+                # Export config directory location so Blockscout can find it
+                export RELEASE_CONFIG_DIR="$BLOCKSCOUT_DIR/config"
+
+                # Add more informative errors
+                export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
+
+                # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it and we have issues with /nix/store perms)
+                echo "" >> "$BLOCKSCOUT_DIR/config/config.exs"
+                echo "# Custom tzdata configuration" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+                echo "config :tzdata, :autoupdate, :disabled" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+
+                # Run the command that was passed to this script
+                exec "$@"
+              '';
+            in ''
+              echo "Starting database migration..."
+              ${blockscoutEnv} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+
+              echo "Starting Blockscout..."
+              ${blockscoutEnv} ${blockscout} start
+            '';
+            depends_on."postgres".condition = "process_healthy";
+            shutdown.signal = 9;
+          };
+
+          blockscout-frontend = {
+            command = lib.getExe self'.packages.blockscout-frontend;
+            readiness_probe = {
+              http_get = {
+                host = "localhost";
+                port = 3000;
+                path = "/";
+              };
+              initial_delay_seconds = 20;
+              period_seconds = 10;
+              timeout_seconds = 5;
+              success_threshold = 1;
+              failure_threshold = 3;
+            };
+            shutdown.signal = 9;
+          };
+
+          postgres = {
+            command = pkgs.writeShellScriptBin "postgres" ''
+              # Initialize database directory
+              ${lib.getExe' pkgs.postgresql "initdb"} \
+                  -D "$POSTGRES_DIR/data" \
+                  --username=blockscout \
+                  --pwfile=<(echo "blockscout") \
+                  --auth=trust \
+                  --encoding=UTF8 \
+                  --data-checksums
+
+              # Start postgres server temporarily for setup
+              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+                  -D "$POSTGRES_DIR/data" \
+                  -o "-k $POSTGRES_DIR/data -h 127.0.0.1 -p 5432" \
+                  -w start
+
+              # Common psql parameters
+              PSQL_COMMON="-h 127.0.0.1 -p 5432 -U blockscout"
+
+              # Create databases
+              for DB in blockscout blockscout_account blockscout_api blockscout_mud; do
+                ${lib.getExe' pkgs.postgresql "createdb"} $PSQL_COMMON $DB
+
+                # Grant superuser privileges to all databases
+                ${lib.getExe' pkgs.postgresql "psql"} $PSQL_COMMON -d $DB \
+                    -c "ALTER USER blockscout WITH SUPERUSER;"
+              done
+
+              # Stop temporary server
+              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+                  -D "$POSTGRES_DIR/data" stop
+
+              # Start postgres with final configuration
+              ${lib.getExe' pkgs.postgresql "postgres"} \
+                  -D "$POSTGRES_DIR/data" \
+                  -k "$POSTGRES_DIR/data" \
+                  -c max_connections=200 \
+                  -c client_connection_check_interval=60000 \
+                  -c listen_addresses='127.0.0.1' \
+                  -c port=5432
+            '';
+            readiness_probe = {
+              exec = {
+                command = ''
+                  ${lib.getExe' pkgs.postgresql "pg_isready"} -U blockscout -d blockscout -h localhost -p 5432;
+                '';
+              };
+              initial_delay_seconds = 5;
+              period_seconds = 10;
+              timeout_seconds = 5;
+              success_threshold = 1;
+              failure_threshold = 5;
+            };
+          };
+
+          pgweb = {
+            command = ''
+              ${lib.getExe pkgs.pgweb} \
+                --host=localhost \
+                --port=5432 \
+                --user=blockscout \
+                --pass=blockscout \
+                --db=blockscout \
+                --listen=8585 \
+                --bind=0.0.0.0
+            '';
+            depends_on."postgres".condition = "process_healthy";
+            readiness_probe = {
+              http_get = {
+                host = "localhost";
+                port = 8585;
+                path = "/";
+              };
+              initial_delay_seconds = 20;
+              period_seconds = 10;
+              timeout_seconds = 2;
+              success_threshold = 1;
+              failure_threshold = 3;
+            };
           };
         };
       };

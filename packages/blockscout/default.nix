@@ -3,6 +3,8 @@
   lib,
   fetchFromGitHub,
   rustPlatform,
+  stdenv,
+  buildNpmPackage,
   ...
 }: let
   pname = "blockscout";
@@ -15,7 +17,7 @@
     owner = "aldoborrero";
     repo = "blockscout";
     rev = "v${version}-nix";
-    hash = "sha256-vNTQVIRDFwXH30MFI12g+Ge1oVxyd0Fk1gBMJRyaiNI=";
+    hash = "sha256-kxQEg6qxta2NwzcVL5/I432wprT/IZl6ipSK3dCuogU=";
   };
 
   secp256k1Nif = rustPlatform.buildRustPackage {
@@ -78,6 +80,44 @@
     doCheck = false;
   };
 
+  prometheusProcessCollectorNif = stdenv.mkDerivation {
+    pname = "prometheus_process_collector";
+    version = "1.6.1";
+
+    src = fetchFromGitHub {
+      owner = "prometheus-erl";
+      repo = "prometheus_process_collector";
+      rev = "v1.6.1";
+      hash = "sha256-cmZiq0kROUiDQsd3EBIN7tcfB73E61/h/aNILh/NjXs=";
+    };
+
+    buildInputs = [
+      beam.interpreters.erlang_26
+      stdenv.cc.cc.lib # For libstdc++
+    ];
+
+    buildPhase = ''
+      cd c_src
+
+      # Get Erlang paths
+      ERTS_INCLUDE_DIR=$(${beam.interpreters.erlang_26}/bin/erl -noshell -s init stop -eval "io:format(\"~s/erts-~s/include/\", [code:root_dir(), erlang:system_info(version)]).")
+      ERL_INTERFACE_INCLUDE_DIR=$(${beam.interpreters.erlang_26}/bin/erl -noshell -s init stop -eval "io:format(\"~s\", [code:lib_dir(erl_interface, include)]).")
+      ERL_INTERFACE_LIB_DIR=$(${beam.interpreters.erlang_26}/bin/erl -noshell -s init stop -eval "io:format(\"~s\", [code:lib_dir(erl_interface, lib)]).")
+
+      # Use the existing Makefile
+      make \
+        ERTS_INCLUDE_DIR="$ERTS_INCLUDE_DIR" \
+        ERL_INTERFACE_INCLUDE_DIR="$ERL_INTERFACE_INCLUDE_DIR" \
+        ERL_INTERFACE_LIB_DIR="$ERL_INTERFACE_LIB_DIR" \
+        C_SRC_OUTPUT=prometheus_process_collector.so
+    '';
+
+    installPhase = ''
+      mkdir -p $out/lib
+      cp prometheus_process_collector.so $out/lib/
+    '';
+  };
+
   mixNixDeps = import ./mix_deps.nix {
     inherit lib beamPackages;
     overrides = final: _prev: {
@@ -117,8 +157,8 @@
             cp "$lib" _build/prod/lib/ex_keccak/priv/native/libexkeccak-v${version}-nif-2.16-x86_64-unknown-linux-gnu.so
 
             # Also maintain the standard location
-            mkdir -p priv/native/ex_keccak
-            ln -s "$lib" priv/native/ex_keccak/libexkeccak.so
+            # mkdir -p priv/native/ex_keccak
+            # ln -s "$lib" priv/native/ex_keccak/libexkeccak.so
           done
         '';
       };
@@ -171,22 +211,15 @@
           RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH = "unused-but-required";
         };
         preBuild = ''
-          # Create the standard location
-          mkdir -p priv/native/ex_secp256k1
-
-          # Create the expected path for runtime
+          # Create directory structure that matches what the module is looking for
+          mkdir -p priv/native
           mkdir -p _build/prod/lib/ex_secp256k1/priv/native
 
           for lib in ${secp256k1Nif}/lib/*
           do
-            file=''${lib##*/}
-            base=''${file%.*}
-
-            # Copy to the expected path with the exact filename
-            cp "$lib" _build/prod/lib/ex_secp256k1/priv/native/libex_secp256k1-v${version}-nif-2.15-x86_64-unknown-linux-gnu.so
-
-            # Also link to standard location
-            ln -s "$lib" priv/native/ex_secp256k1/$base.so
+            # Copy to both locations to ensure the library is found
+            cp "$lib" priv/native/libex_secp256k1.so
+            cp "$lib" _build/prod/lib/ex_secp256k1/priv/native/libex_secp256k1-v${version}-nif-2.16-x86_64-unknown-linux-gnu.so
           done
         '';
       };
@@ -242,12 +275,16 @@
         name = "prometheus_process_collector";
         version = "1.6.1";
         src = fetchFromGitHub {
-          owner = "Phybbit";
+          owner = "prometheus-erl";
           repo = "prometheus_process_collector";
-          rev = "3dc94dcff422d7b9cbd7ddf6bf2a896446705f3f";
-          sha256 = "sha256-cmZiq0kROUiDQsd3EBIN7tcfB73E61/h/aNILh/NjXs=";
+          rev = "v1.6.1";
+          hash = "sha256-cmZiq0kROUiDQsd3EBIN7tcfB73E61/h/aNILh/NjXs=";
         };
         beamDeps = with final; [prometheus];
+        preBuild = ''
+          mkdir -p priv
+          cp ${prometheusProcessCollectorNif}/lib/prometheus_process_collector.so priv/
+        '';
       };
 
       ex_cldr_lists = beamPackages.buildMix rec {
@@ -325,9 +362,73 @@
       };
     };
   };
+
+  blockscout-web = buildNpmPackage {
+    pname = "blockscout-web";
+    inherit src version;
+
+    sourceRoot = "${src.name}/apps/block_scout_web/assets";
+
+    npmDepsHash = "sha256-YF+csD73y/pvM/Qpqd/BEovzzoxhJbCcetJhGmN6dTE=";
+
+    # Make the npm cache writable to fix permission errors
+    makeCacheWritable = true;
+
+    # Add legacy peer deps flag to handle deprecated packages
+    npmFlags = ["--legacy-peer-deps"];
+
+    NODE_OPTIONS = "--openssl-legacy-provider";
+
+    npmBuildScript = "deploy";
+
+    # Modify package.json to point to our Phoenix JS files
+    preBuild = ''
+      # Create the output directory structure ahead of time
+      mkdir -p $(pwd)/priv/static
+
+      # Modify webpack.config.js to output to a different location
+      substituteInPlace webpack.config.js \
+        --replace-warn "../priv/static" "$(pwd)/priv/static"
+    '';
+
+    installPhase = ''
+      # Create output directory
+      mkdir -p $out
+
+      # Copy compiled assets
+      cp -r $(pwd)/priv/static/* $out/
+    '';
+  };
 in
   beamPackages.mixRelease {
     inherit src pname version;
     inherit mixNixDeps;
+    patches = [./003_allow_updated_gas_oracle_header.patch];
+    mixEnv = "prod";
     removeCookie = false;
+
+    postInstall = ''
+      # Create the release configuration files
+      mkdir -p $out/apps/{block_scout_web,explorer,indexer}
+      mkdir -p $out/releases/${version}
+
+      # Copy config files
+      cp -r ${src}/apps/block_scout_web/config $out/apps/block_scout_web/config
+      cp -r ${src}/apps/explorer/config $out/apps/explorer/config
+      cp -r ${src}/apps/indexer/config $out/apps/indexer/config
+
+      cp ${src}/config/config_helper.exs $out/releases/${version}/config_helper.exs
+
+      cp -r ${src}/config/ $out
+
+      # Create basic static assets if they don't exist
+      mkdir -p $out/lib/block_scout_web-${version}/priv/static
+
+      # Copy the built webapp assets to the right location
+      cp -r ${blockscout-web}/* $out/lib/block_scout_web-${version}/priv/static/
+    '';
+
+    meta = {
+      mainProgram = "blockscout";
+    };
   }
