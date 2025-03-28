@@ -25,21 +25,24 @@
 in
   pkgs.stdenv.mkDerivation rec {
     pname = "contracts-bedrock";
-    version = "1.8.0";
+    version = "3.0.0-rc.2";
 
     src = fetchFromGitHub {
       owner = "ethereum-optimism";
       repo = "optimism";
       rev = "op-contracts/v${version}";
-      hash = "sha256-87Gcy54DNpgH538nmxWCdIeMC7+rCFcPwIpBGooAp4c=";
+      hash = "sha256-8s6XHNnEv5hrDjvmVH06aiKxCSeYS2RhDel8z3EcWrs=";
       fetchSubmodules = true;
     };
 
+    patches = [./001_deployment_game_clock_validations_removal.patch];
+
     nativeBuildInputs = with pkgs; [foundry-bin];
 
-    unpackPhase = ''
+    buildPhase = ''
       cp $src/packages/contracts-bedrock/foundry.toml .
       cp -r $src/packages/contracts-bedrock/src .
+      cp -r $src/packages/contracts-bedrock/interfaces .
       cp -r $src/packages/contracts-bedrock/test .
       cp -r $src/packages/contracts-bedrock/scripts .
       cp -r $src/packages/contracts-bedrock/lib .
@@ -51,21 +54,16 @@ in
           solc_0_8_25
         ]
       )}
-    '';
 
-    buildPhase = ''
       forge build --offline
     '';
 
     installPhase = ''
       mkdir -p $out
-      cp foundry.toml $out/
-      cp -r src $out/
-      cp -r test $out/
-      cp -r scripts $out/
-      cp -r lib $out/
       cp -r forge-artifacts $out/
+      cp -r artifacts $out/
       cp -r cache $out/
+      echo ef7a933ca7f3d27ac40406f87fea25e0c3ba2016 > $out/COMMIT
     '';
 
     meta = with lib; {

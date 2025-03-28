@@ -19,6 +19,8 @@
     prysm-ctl = "${self'.packages.prysm}/bin/prysmctl";
     prysm-validator = "${self'.packages.prysm}/bin/validator";
 
+    contract-artifacts = self'.packages.contracts-bedrock-v3_0_0-rc2;
+
     # L2
     op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
     op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
@@ -322,7 +324,8 @@
                 --batcher ${BATCHER.address} \
                 --challenger ${CHALLENGER.address} \
                 --sequencer ${SEQUENCER.address} \
-                --proposer ${PROPOSER.address}
+                --proposer ${PROPOSER.address} \
+                --contract-artifacts ${contract-artifacts}
             '';
             shutdown.signal = 9;
             depends_on."l1-check".condition = "process_completed_successfully";

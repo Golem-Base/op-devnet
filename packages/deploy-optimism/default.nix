@@ -33,7 +33,7 @@
     ARTIFACTS_CHECKSUM="147b9fae70608da2975a01be3d98948306f89ba1930af7c917eea41a54d87cdb"
 
     L1_CONTRACTS_RELEASE="op-contracts/v3.0.0-rc.2"
-    # L2_ARTIFACTS_LOCATOR="op-contracts/v3.0.0-rc.2"
+
     ABSOLUTE_PRESTATE_HASH="0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a"
     PROTOCOL_VERSION="0x0000000000000000000000000000000000000004000000000000000000000001"
 
@@ -65,6 +65,8 @@
       --sequencer <ADDRESS>                      -
       --proposer <ADDRESS>                       -
 
+      --contract-artifacts <PATH>                Path to contract artifacts
+
       --absolute-prestate-hash <HASH>            Absolute prestate hash           (default: 0x03c7dde421fc4988d13be78b655712e0274937dab5de988fbb7a17cf6142b8a)
       --protocol-version <HASH>                  Protocol version hash            (default: 0x0000000000000000000000000000000000000004000000000000000000000001)
 
@@ -74,7 +76,7 @@
     }
 
     OPTIONS=h
-    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,absolute-prestate-hash:,protocol-version:
+    LONGOPTS=help,private-key:,rpc-url:,work-dir:,l1-chain-id:,l2-chain-id:,superchain-proxy-admin-owner:,protocol-versions-owner:,guardian:,base-fee-vault-recipient:,l1-fee-vault-recipient:,sequencer-fee-vault-recipient:,l1-proxy-admin-owner:,l2-proxy-admin-owner:,system-config-owner:,unsafe-block-signer:,upgrade-controller:,batcher:,challenger:,sequencer:,proposer:,contract-artifacts:,absolute-prestate-hash:,protocol-version:
 
     TEMP=$(getopt -o "$OPTIONS" --long "$LONGOPTS" -n "''${0##*/}" -- "$@") || {
       usage
@@ -165,8 +167,8 @@
         PROPOSER="$2"
         shift 2
         ;;
-      --proof-maturity-delay-seconds)
-        PROOF_MATURITY_DELAY_SECONDS="$2"
+      --contract-artifacts)
+        CONTRACT_ARTIFACTS="$2"
         shift 2
         ;;
       --absolute-prestate-hash)
@@ -314,8 +316,8 @@
       exit 1
     fi
 
-    if [[ -z "$PROOF_MATURITY_DELAY_SECONDS" ]]; then
-      echo "Error: --proof-maturity-delay-seconds is required." >&2
+    if [[ -z "$CONTRACT_ARTIFACTS" ]]; then
+      echo "Error: --contract-artifacts is required." >&2
       usage
       exit 1
     fi
@@ -329,6 +331,10 @@ in
     CACHE_DIR=$HOME/.local/share/optimism/cache
     mkdir -p $CACHE_DIR
 
+    ARTIFACTS_LOCATOR="file://$CONTRACT_ARTIFACTS/forge-artifacts"
+
+    echo $ARTIFACTS_LOCATOR
+
     INTENT_FILE=$WORK_DIR/intent.toml
     SUPERCHAIN_FILE=$WORK_DIR/superchain.json
     IMPLEMENTATIONS_FILE=$WORK_DIR/implementations.json
@@ -336,8 +342,6 @@ in
     GENESIS_FILE=$WORK_DIR/genesis.json
     L1_ADDRESSES_FILE=$WORK_DIR/l1_addresses.json
     ROLLUP_FILE=$WORK_DIR/rollup.json
-
-    ARTIFACTS_LOCATOR="https://storage.googleapis.com/oplabs-contract-artifacts/artifacts-v1-$ARTIFACTS_CHECKSUM.tar.gz"
 
     echo "Initializing OP chain"
     ${op-deployer} init \

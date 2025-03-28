@@ -24,8 +24,7 @@
       op-batcher = callPackage ./op-batcher {};
       op-geth = callPackage ./op-geth {};
 
-      contracts-bedrock-v1_8_0 = callPackage ./contracts-bedrock/v1_8_0.nix {};
-      contracts-bedrock-v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix {};
+      contracts-bedrock-v3_0_0-rc2 = callPackage ./contracts-bedrock/v3_0_0-rc.2.nix {};
 
       op-config = import ./op-config {inherit pkgs;};
 

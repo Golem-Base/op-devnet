@@ -60,7 +60,7 @@ index 5ec0b2c4c8..e6edf0ca95 100644
  
  var UpgradeFlags = []cli.Flag{
 diff --git a/op-deployer/pkg/deployer/standard/standard.go b/op-deployer/pkg/deployer/standard/standard.go
-index a102959f60..5bb5020f84 100644
+index a102959f60..56e9072a55 100644
 --- a/op-deployer/pkg/deployer/standard/standard.go
 +++ b/op-deployer/pkg/deployer/standard/standard.go
 @@ -17,23 +17,27 @@ import (
@@ -99,8 +99,8 @@ index a102959f60..5bb5020f84 100644
 +	DisputeGameType          uint32 = 1 // PERMISSIONED game type
 +	DisputeMaxGameDepth      uint64 = 73
 +	DisputeSplitDepth        uint64 = 30
-+	DisputeClockExtension    uint64 = 10800
-+	DisputeMaxClockDuration  uint64 = 302400
++	DisputeClockExtension    uint64 = 30
++	DisputeMaxClockDuration  uint64 = 60
 +	Eip1559DenominatorCanyon uint64 = 250
 +	Eip1559Denominator       uint64 = 50
 +	Eip1559Elasticity        uint64 = 6
