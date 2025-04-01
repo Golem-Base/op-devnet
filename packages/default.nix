@@ -18,26 +18,26 @@
 
       eth2-testnet-genesis = callPackage ./eth2-testnet-genesis {inherit bls;};
 
-      # op stack (supports contracts v1_3_0 to v1_8_0)
       op-node = callPackage ./op-node {};
       op-proposer = callPackage ./op-proposer {};
       op-batcher = callPackage ./op-batcher {};
       op-geth = callPackage ./op-geth {};
 
-      contracts-bedrock-v1_8_0 = callPackage ./contracts-bedrock/v1_8_0.nix {};
-      contracts-bedrock-v1_3_0 = callPackage ./contracts-bedrock/v1_3_0.nix {};
+      contracts-bedrock-v3_0_0-rc2 = callPackage ./contracts-bedrock/v3.0.0-rc.2 {};
+      contracts-bedrock-v2_0_0-rc1 = callPackage ./contracts-bedrock/v2.0.0-rc.1 {};
+      contracts-bedrock-v1_7_0-beta_1_l2-contracts = callPackage ./contracts-bedrock/v1.7.0-beta.1+l2-contracts {};
 
       op-config = import ./op-config {inherit pkgs;};
 
       probe = callPackage ../probe {};
 
-      deploy-optimism = callPackage ./deploy-optimism {op-deployer = op-deployer-v0_2_0_rc1;};
-
-      # op stack (supports contracts v2.0.0)
       op-batcher-v1_11_4 = callPackage ./op-batcher/op-batcher-v1_11_4.nix {};
-      op-deployer-v0_2_0_rc1 = callPackage ./op-deployer/op-deployer-v0_2_0_rc1.nix {};
+
+      op-deployer-v0_2_0-rc2 = callPackage ./op-deployer/op-deployer-v0.2.0-rc.2.nix {};
+
       op-geth-v1_101500_1 = callPackage ./op-geth/op-geth-v1_101500_1.nix {};
       op-node-v1_11_2 = callPackage ./op-node/op-node-v1_11_2.nix {};
+      op-node-v1_12_0 = callPackage ./op-node/op-node-v1_12_0.nix {};
       op-proposer-v1_10_0 = callPackage ./op-proposer/op-proposer-v1_10_0.nix {};
     };
 

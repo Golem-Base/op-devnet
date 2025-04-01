@@ -23,21 +23,23 @@
     ${solcInstalls}
   '';
 in
-  pkgs.stdenv.mkDerivation rec {
+  pkgs.stdenv.mkDerivation {
     pname = "contracts-bedrock";
-    version = "1.8.0";
+    version = "1.7.0-beta.1+l2-contracts";
 
     src = fetchFromGitHub {
       owner = "ethereum-optimism";
       repo = "optimism";
-      rev = "op-contracts/v${version}";
-      hash = "sha256-87Gcy54DNpgH538nmxWCdIeMC7+rCFcPwIpBGooAp4c=";
+      rev = "5e14a61547a45eef2ebeba677aee4a049f106ed8";
+      hash = "sha256-CiW2f4lXmACwCg8GM2BG16bZjqBHLNJPYwHxIf5GRyg=";
       fetchSubmodules = true;
     };
 
+    patches = [./001_v1_7_0-beta_1_l2-contracts__additional_holocene_fork.patch];
+
     nativeBuildInputs = with pkgs; [foundry-bin];
 
-    unpackPhase = ''
+    buildPhase = ''
       cp $src/packages/contracts-bedrock/foundry.toml .
       cp -r $src/packages/contracts-bedrock/src .
       cp -r $src/packages/contracts-bedrock/test .
@@ -49,23 +51,19 @@ in
           solc_0_8_15
           solc_0_8_19
           solc_0_8_25
+          solc_0_8_28
         ]
       )}
-    '';
 
-    buildPhase = ''
       forge build --offline
     '';
 
     installPhase = ''
       mkdir -p $out
-      cp foundry.toml $out/
-      cp -r src $out/
-      cp -r test $out/
-      cp -r scripts $out/
-      cp -r lib $out/
       cp -r forge-artifacts $out/
+      cp -r artifacts $out/
       cp -r cache $out/
+      echo ef7a933ca7f3d27ac40406f87fea25e0c3ba2016 > $out/COMMIT
     '';
 
     meta = with lib; {

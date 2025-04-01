@@ -11,6 +11,7 @@
     # utils
     openssl = lib.getExe pkgs.openssl;
     jq = lib.getExe pkgs.jq;
+    dasel = lib.getExe pkgs.dasel;
     # cast = "${pkgs.foundry}/bin/cast";
 
     #L1
@@ -19,15 +20,25 @@
     prysm-ctl = "${self'.packages.prysm}/bin/prysmctl";
     prysm-validator = "${self'.packages.prysm}/bin/validator";
 
+    op-deployer = lib.getExe self'.packages.op-deployer-v0_2_0-rc2;
+
+    l1-contracts-release = "op-contracts/v2.0.0-rc.1";
+    l1-artifacts-locator = "file://${self'.packages.contracts-bedrock-v2_0_0-rc1}/forge-artifacts/";
+
+    l2-contracts-release = "op-contracts/v1.7.0-beta.1+l2-contracts";
+    # https://github.com/ethereum-optimism/optimism/blob/f2d662612014c125b2e9477052ff44184a640074/op-deployer/pkg/deployer/pipeline/l2genesis.go#L53
+    l2-artifacts-locator = "tag://${l2-contracts-release}";
+    # l2-artifacts-locator = "${self'.packages.contracts-bedrock-v1_7_0-beta_1_l2-contracts}/forge-artifacts/";
+
     # L2
     op-batcher = lib.getExe self'.packages.op-batcher-v1_11_4;
     op-geth = lib.getExe self'.packages.op-geth-v1_101500_1;
-    op-node = lib.getExe self'.packages.op-node-v1_11_2;
+    op-node = lib.getExe self'.packages.op-node-v1_12_0;
     op-proposer = lib.getExe self'.packages.op-proposer-v1_10_0;
 
     probe = lib.getExe self'.packages.probe;
 
-    deploy-optimism = "${self'.packages.deploy-optimism}/bin/deploy-optimism";
+    # deploy-optimism = "${self'.packages.deploy-optimism-new}/bin/deploy-optimism";
     # withdrawer = "${inputs.withdrawer.packages.${pkgs.system}.default}";
 
     configs = pkgs.callPackage ./configs {};
@@ -95,7 +106,9 @@
       inherit accounts;
       balance = "0xd3c21bcecceda1000000";
     };
-    chain-config = configs.mkChainConfig {};
+    chain-config = configs.mkChainConfig {
+      SECONDS_PER_SLOT = 4;
+    };
   in {
     process-compose."devnet" = {
       cli.options.port = 5656;
@@ -301,28 +314,123 @@
 
           # L2
           l2-deploy = {
-            command = ''
-              ${deploy-optimism} \
-                --rpc-url http://localhost:${GETH_HTTP_PORT} \
-                --private-key ${DEPLOYER_ACCOUNT.private-key} \
-                --l1-chain-id ${L1_CHAIN_ID} \
-                --l2-chain-id ${L2_CHAIN_ID} \
-                --work-dir $OP_DEPLOYER_DIR \
-                --superchain-proxy-admin-owner ${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
-                --protocol-versions-owner ${PROTOCOL_VERSIONS_OWNER.address} \
-                --guardian ${GUARDIAN.address} \
-                --l1-fee-vault-recipient ${L1_FEE_VAULT_RECIPIENT.address} \
-                --base-fee-vault-recipient ${BASE_FEE_VAULT_RECIPIENT.address} \
-                --sequencer-fee-vault-recipient ${SEQUENCER_FEE_VAULT_RECIPIENT.address} \
-                --l1-proxy-admin-owner ${L1_PROXY_ADMIN_OWNER.address} \
-                --l2-proxy-admin-owner ${L2_PROXY_ADMIN_OWNER.address} \
-                --system-config-owner ${SYSTEM_CONFIG_OWNER.address} \
-                --unsafe-block-signer ${UNSAFE_BLOCK_SIGNER.address} \
-                --upgrade-controller ${UPGRADE_CONTROLLER.address} \
-                --batcher ${BATCHER.address} \
-                --challenger ${CHALLENGER.address} \
-                --sequencer ${SEQUENCER.address} \
-                --proposer ${PROPOSER.address}
+            command = pkgs.writeShellScriptBin "l2-deploy" ''
+              set -euo pipefail
+
+              PROTOCOL_VERSION="0x0000000000000000000000000000000000000009000000000000000000000000"
+
+              CACHE_DIR=$HOME/.local/share/optimism/cache
+
+              L1_CONTRACTS_RELEASE=${l1-contracts-release}
+              L1_ARTIFACTS_LOCATOR=${l1-artifacts-locator}
+              L2_ARTIFACTS_LOCATOR=${l2-artifacts-locator}
+
+              INTENT_FILE=$OP_DEPLOYER_DIR/intent.toml
+              SUPERCHAIN_FILE=$OP_DEPLOYER_DIR/superchain.json
+              IMPLEMENTATIONS_FILE=$OP_DEPLOYER_DIR/implementations.json
+              PROXY_FILE=$OP_DEPLOYER_DIR/proxy.json
+              GENESIS_FILE=$OP_DEPLOYER_DIR/genesis.json
+              L1_ADDRESSES_FILE=$OP_DEPLOYER_DIR/l1_addresses.json
+              ROLLUP_FILE=$OP_DEPLOYER_DIR/rollup.json
+
+              mkdir -p $CACHE_DIR
+              printf "\n\n### DEPLOY INIT ###\n\n"
+              ${op-deployer} init \
+                  --l1-chain-id ${L1_CHAIN_ID} \
+                  --l2-chain-ids ${L2_CHAIN_ID} \
+                  --workdir $OP_DEPLOYER_DIR \
+                  --intent-type custom
+
+              ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559DenominatorCanyon" -v 250
+              ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559Denominator" -v 50
+              ${dasel} put -f $INTENT_FILE -r toml -t int "chains.[0].eip1559Elasticity" -v 6
+              ${dasel} put -f $INTENT_FILE -r toml -t string -v "$L1_ARTIFACTS_LOCATOR" "l1ContractsLocator"
+              ${dasel} put -f $INTENT_FILE -r toml -t string -v "$L2_ARTIFACTS_LOCATOR" "l2ContractsLocator"
+
+              printf "\n\n### DEPLOY BOOTSTRAP SUPERCHAIN ###\n\n"
+              ${op-deployer} bootstrap superchain \
+                  --private-key=${DEPLOYER_ACCOUNT.private-key} \
+                  --l1-rpc-url=http://localhost:${GETH_HTTP_PORT} \
+                  --artifacts-locator=$L1_ARTIFACTS_LOCATOR \
+                  --guardian=${GUARDIAN.address} \
+                  --recommended-protocol-version=$PROTOCOL_VERSION \
+                  --required-protocol-version=$PROTOCOL_VERSION \
+                  --superchain-proxy-admin-owner=${SUPERCHAIN_PROXY_ADMIN_OWNER.address} \
+                  --protocol-versions-owner=${PROTOCOL_VERSIONS_OWNER.address} \
+                  --outfile=$SUPERCHAIN_FILE
+
+              ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.proxyAdminOwner" -v "${SUPERCHAIN_PROXY_ADMIN_OWNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.protocolVersionsOwner" -v "${PROTOCOL_VERSIONS_OWNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "superchainRoles.guardian" -v "${GUARDIAN.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].baseFeeVaultRecipient" -v "${BASE_FEE_VAULT_RECIPIENT.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].l1FeeVaultRecipient" -v "${L1_FEE_VAULT_RECIPIENT.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].sequencerFeeVaultRecipient" -v "${SEQUENCER_FEE_VAULT_RECIPIENT.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.l1ProxyAdminOwner" -v "${L1_PROXY_ADMIN_OWNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.l2ProxyAdminOwner" -v "${L2_PROXY_ADMIN_OWNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.systemConfigOwner" -v "${SYSTEM_CONFIG_OWNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.unsafeBlockSigner" -v "${UNSAFE_BLOCK_SIGNER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.batcher" -v "${BATCHER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.challenger" -v "${CHALLENGER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.sequencer" -v "${SEQUENCER.address}"
+              ${dasel} put -f $INTENT_FILE -r toml -t string "chains.[0].roles.proposer" -v "${PROPOSER.address}"
+
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.faultGameWithdrawalDelay" -v 151
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.preimageOracleChallengePeriod" -v 48
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.proofMaturityDelaySeconds" -v 302
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.disputeGameFinalityDelaySeconds" -v 151
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.faultGameClockExtension" -v 36
+              ${dasel} put -f $INTENT_FILE -r toml -t int "globalDeployOverrides.faultGameMaxClockDuration" -v 151
+
+              ${dasel} put -f $INTENT_FILE -r toml -t bool "globalDeployOverrides.dangerouslyAllowCustomDisputeParameters" -v "true"
+
+              # >= v0.3.0 deployer
+              # SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".superchainConfigProxyAddress" -w plain)
+              # SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".proxyAdminAddress" -w plain)
+              # PROTOCOL_VERSIONS_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".protocolVersionsProxyAddress" -w plain)
+
+              # < v0.3.0 deployer
+              SUPERCHAIN_CONFIG_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainConfigProxy" -w plain)
+              SUPERCHAIN_PROXY_ADMIN=$(${dasel} select -f $SUPERCHAIN_FILE -s ".SuperchainProxyAdmin" -w plain)
+              PROTOCOL_VERSIONS_PROXY=$(${dasel} select -f $SUPERCHAIN_FILE -s ".ProtocolVersionsProxy" -w plain)
+
+              printf "\n\n### DEPLOY BOOTSTRAP IMPLEMENTATIONS ###\n\n"
+              ${op-deployer} bootstrap implementations \
+                  --superchain-config-proxy=$SUPERCHAIN_CONFIG_PROXY \
+                  --protocol-versions-proxy=$PROTOCOL_VERSIONS_PROXY \
+                  --private-key=${DEPLOYER_ACCOUNT.private-key} \
+                  --l1-rpc-url=http://localhost:${GETH_HTTP_PORT}  \
+                  --artifacts-locator=$L1_ARTIFACTS_LOCATOR \
+                  --l1-contracts-release=$L1_CONTRACTS_RELEASE \
+                  --upgrade-controller=${UPGRADE_CONTROLLER.address} \
+                  --outfile=$IMPLEMENTATIONS_FILE
+
+              printf "\n\n### DEPLOY BOOTSTRAP PROXY ###\n\n"
+              ${op-deployer} bootstrap proxy \
+                  --private-key=${DEPLOYER_ACCOUNT.private-key} \
+                  --l1-rpc-url=http://localhost:${GETH_HTTP_PORT}  \
+                  --artifacts-locator=$L1_ARTIFACTS_LOCATOR \
+                  --proxy-owner=${L1_PROXY_ADMIN_OWNER.address} \
+                  --outfile=$PROXY_FILE
+
+              printf "\n\n### DEPLOY APPLY ###\n\n"
+              ${op-deployer} apply \
+                  --private-key=${DEPLOYER_ACCOUNT.private-key} \
+                  --l1-rpc-url=http://localhost:${GETH_HTTP_PORT}  \
+                  --workdir=$OP_DEPLOYER_DIR
+
+              ${op-deployer} inspect genesis \
+                  --workdir $OP_DEPLOYER_DIR ${L2_CHAIN_ID} \
+                  > $GENESIS_FILE
+
+              ${op-deployer} inspect rollup \
+                  --workdir $OP_DEPLOYER_DIR ${L2_CHAIN_ID} \
+                  > $ROLLUP_FILE
+
+              ${op-deployer} inspect l1 \
+                  --workdir $OP_DEPLOYER_DIR ${L2_CHAIN_ID} \
+                  > $L1_ADDRESSES_FILE
+
+              printf "\n\n### DEPLOY FINISHED ###"
             '';
             shutdown.signal = 9;
             depends_on."l1-check".condition = "process_completed_successfully";
@@ -474,200 +582,200 @@
             shutdown.signal = 9;
           };
 
-          blockscout = {
-            command = let
-              # Create a wrapper script that sets up everything
-              blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
-                # Change to the blockscout directory so relative paths work
-                cd "$BLOCKSCOUT_DIR"
+          # blockscout = {
+          #   command = let
+          #     # Create a wrapper script that sets up everything
+          #     blockscoutEnv = pkgs.writeShellScript "blockscout-env.sh" ''
+          #       # Change to the blockscout directory so relative paths work
+          #       cd "$BLOCKSCOUT_DIR"
 
-                # Copy necessary files to customize blockscout
-                cp --no-preserve=mode -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_DIR"
-                cp --no-preserve=mode "${self'.packages.blockscout}/config/config.exs" "$BLOCKSCOUT_DIR/config/config.exs"
-                cp --no-preserve=mode "${self'.packages.blockscout}/config/runtime/prod.exs" "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
-                cp --no-preserve=mode "${self'.packages.blockscout}/config/config_helper.exs" "$BLOCKSCOUT_DIR/config/config_helper.exs"
+          #       # Copy necessary files to customize blockscout
+          #       cp --no-preserve=mode -r "${self'.packages.blockscout}/apps" "$BLOCKSCOUT_DIR"
+          #       cp --no-preserve=mode "${self'.packages.blockscout}/config/config.exs" "$BLOCKSCOUT_DIR/config/config.exs"
+          #       cp --no-preserve=mode "${self'.packages.blockscout}/config/runtime/prod.exs" "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+          #       cp --no-preserve=mode "${self'.packages.blockscout}/config/config_helper.exs" "$BLOCKSCOUT_DIR/config/config_helper.exs"
 
-                # Database Configuration - explicit database settings
-                export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable"
+          #       # Database Configuration - explicit database settings
+          #       export DATABASE_URL="postgresql://blockscout:blockscout@localhost:5432/blockscout?sslmode=disable"
 
-                # Ethereum JSON RPC Configuration
-                export ETHEREUM_JSONRPC_VARIANT=geth
-                export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}"
-                export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}"
-                export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
-                export ETHEREUM_JSONRPC_HTTP_HEADERS='{
-                  "Access-Control-Allow-Origin": "http://localhost:3000",
-                  "Access-Control-Allow-Headers": "Authorization,Content-Type,updated-gas-oracle",
-                  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                  "Access-Control-Allow-Credentials": "true"
-                }'
-                # Set tzdata directory to a writable location
-                export TZDATA_DIR="$BLOCKSCOUT_DIR/tzdata"
+          #       # Ethereum JSON RPC Configuration
+          #       export ETHEREUM_JSONRPC_VARIANT=geth
+          #       export ETHEREUM_JSONRPC_HTTP_URL="http://localhost:${GETH_HTTP_PORT}"
+          #       export ETHEREUM_JSONRPC_TRACE_URL="http://localhost:${GETH_HTTP_PORT}"
+          #       export ETHEREUM_JSONRPC_WS_URL="ws://localhost:${GETH_WS_PORT}"
+          #       export ETHEREUM_JSONRPC_HTTP_HEADERS='{
+          #         "Access-Control-Allow-Origin": "http://localhost:3000",
+          #         "Access-Control-Allow-Headers": "Authorization,Content-Type,updated-gas-oracle",
+          #         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          #         "Access-Control-Allow-Credentials": "true"
+          #       }'
+          #       # Set tzdata directory to a writable location
+          #       export TZDATA_DIR="$BLOCKSCOUT_DIR/tzdata"
 
-                # SSL Configuration
-                export ECTO_USE_SSL=false
+          #       # SSL Configuration
+          #       export ECTO_USE_SSL=false
 
-                # Basic Configuration
-                export BLOCKSCOUT_PROTOCOL="http"
-                export BLOCKSCOUT_HOST="localhost"
-                export PORT="4040"
-                export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN"
+          #       # Basic Configuration
+          #       export BLOCKSCOUT_PROTOCOL="http"
+          #       export BLOCKSCOUT_HOST="localhost"
+          #       export PORT="4040"
+          #       export SECRET_KEY_BASE="56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN"
 
-                # Chain Configuration
-                export CHAIN_ID=${L1_CHAIN_ID}
-                export SUBNETWORK="Local Testnet"
-                export NETWORK="L1"
-                export CHAIN_TYPE="ethereum"
+          #       # Chain Configuration
+          #       export CHAIN_ID=${L1_CHAIN_ID}
+          #       export SUBNETWORK="Local Testnet"
+          #       export NETWORK="L1"
+          #       export CHAIN_TYPE="ethereum"
 
-                # Runtime Behavior Configuration
-                export ACCOUNT_ENABLED=false
-                export ADMIN_PANEL_ENABLED=true
-                export API_V1_READ_METHODS_DISABLED=false
-                export API_V1_WRITE_METHODS_DISABLED=false
-                export DISABLE_EXCHANGE_RATES=true
-                export DISABLE_WEBAPP=false
-                export MUD_INDEXER_ENABLED=false
-                export NFT_MEDIA_HANDLER_ENABLED=false
+          #       # Runtime Behavior Configuration
+          #       export ACCOUNT_ENABLED=false
+          #       export ADMIN_PANEL_ENABLED=true
+          #       export API_V1_READ_METHODS_DISABLED=false
+          #       export API_V1_WRITE_METHODS_DISABLED=false
+          #       export DISABLE_EXCHANGE_RATES=true
+          #       export DISABLE_WEBAPP=false
+          #       export MUD_INDEXER_ENABLED=false
+          #       export NFT_MEDIA_HANDLER_ENABLED=false
 
-                # Indexer settings
-                export DISABLE_INDEXER=false
-                export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
-                export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
-                export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
-                export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
-                export INDEXER_DISABLE_CATALOGED_TOKEN_UPDATER_FETCHER=true
+          #       # Indexer settings
+          #       export DISABLE_INDEXER=false
+          #       export INDEXER_BEACON_RPC_URL=http://localhost:${BEACON_HTTP_PORT}
+          #       export INDEXER_CATCHUP_BLOCKS_BATCH_SIZE=10
+          #       export INDEXER_CATCHUP_BLOCKS_CONCURRENCY=10
+          #       export INDEXER_DISABLE_BEACON_BLOB_FETCHER=true
+          #       export INDEXER_DISABLE_CATALOGED_TOKEN_UPDATER_FETCHER=true
 
-                export INDEXER_SYSTEM_MEMORY_PERCENTAGE=10
+          #       export INDEXER_SYSTEM_MEMORY_PERCENTAGE=10
 
-                # Set RELEASE_COOKIE if not already set
-                export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
+          #       # Set RELEASE_COOKIE if not already set
+          #       export RELEASE_COOKIE=''${RELEASE_COOKIE:-"blockscout-cookie"}
 
-                # Set RUNTIME_CONFIG=true to ensure it reads the runtime config
-                export RUNTIME_CONFIG=true
+          #       # Set RUNTIME_CONFIG=true to ensure it reads the runtime config
+          #       export RUNTIME_CONFIG=true
 
-                # Export config directory location so Blockscout can find it
-                export RELEASE_CONFIG_DIR="$BLOCKSCOUT_DIR/config"
+          #       # Export config directory location so Blockscout can find it
+          #       export RELEASE_CONFIG_DIR="$BLOCKSCOUT_DIR/config"
 
-                # Add more informative errors
-                export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
+          #       # Add more informative errors
+          #       export SHOW_SENSITIVE_DATA_ON_CONNECTION_ERROR=true
 
-                # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it and we have issues with /nix/store perms)
-                echo "" >> "$BLOCKSCOUT_DIR/config/config.exs"
-                echo "# Custom tzdata configuration" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
-                echo "config :tzdata, :autoupdate, :disabled" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+          #       # Append tzdata configuration to config.exs (blockscout doesnt allow configuring it and we have issues with /nix/store perms)
+          #       echo "" >> "$BLOCKSCOUT_DIR/config/config.exs"
+          #       echo "# Custom tzdata configuration" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
+          #       echo "config :tzdata, :autoupdate, :disabled" >> "$BLOCKSCOUT_DIR/config/runtime/prod.exs"
 
-                # Run the command that was passed to this script
-                exec "$@"
-              '';
-            in ''
-              echo "Starting database migration..."
-              ${blockscoutEnv} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
+          #       # Run the command that was passed to this script
+          #       exec "$@"
+          #     '';
+          #   in ''
+          #     echo "Starting database migration..."
+          #     ${blockscoutEnv} ${blockscout} eval "Elixir.Explorer.ReleaseTasks.create_and_migrate()"
 
-              echo "Starting Blockscout..."
-              ${blockscoutEnv} ${blockscout} start
-            '';
-            depends_on."postgres".condition = "process_healthy";
-            shutdown.signal = 9;
-          };
+          #     echo "Starting Blockscout..."
+          #     ${blockscoutEnv} ${blockscout} start
+          #   '';
+          #   depends_on."postgres".condition = "process_healthy";
+          #   shutdown.signal = 9;
+          # };
 
-          blockscout-frontend = {
-            command = lib.getExe self'.packages.blockscout-frontend;
-            readiness_probe = {
-              http_get = {
-                host = "localhost";
-                port = 3000;
-                path = "/";
-              };
-              initial_delay_seconds = 20;
-              period_seconds = 10;
-              timeout_seconds = 5;
-              success_threshold = 1;
-              failure_threshold = 3;
-            };
-            shutdown.signal = 9;
-          };
+          # blockscout-frontend = {
+          #   command = lib.getExe self'.packages.blockscout-frontend;
+          #   readiness_probe = {
+          #     http_get = {
+          #       host = "localhost";
+          #       port = 3000;
+          #       path = "/";
+          #     };
+          #     initial_delay_seconds = 20;
+          #     period_seconds = 10;
+          #     timeout_seconds = 5;
+          #     success_threshold = 1;
+          #     failure_threshold = 3;
+          #   };
+          #   shutdown.signal = 9;
+          # };
 
-          postgres = {
-            command = pkgs.writeShellScriptBin "postgres" ''
-              # Initialize database directory
-              ${lib.getExe' pkgs.postgresql "initdb"} \
-                  -D "$POSTGRES_DIR/data" \
-                  --username=blockscout \
-                  --pwfile=<(echo "blockscout") \
-                  --auth=trust \
-                  --encoding=UTF8 \
-                  --data-checksums
+          # postgres = {
+          #   command = pkgs.writeShellScriptBin "postgres" ''
+          #     # Initialize database directory
+          #     ${lib.getExe' pkgs.postgresql "initdb"} \
+          #         -D "$POSTGRES_DIR/data" \
+          #         --username=blockscout \
+          #         --pwfile=<(echo "blockscout") \
+          #         --auth=trust \
+          #         --encoding=UTF8 \
+          #         --data-checksums
 
-              # Start postgres server temporarily for setup
-              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
-                  -D "$POSTGRES_DIR/data" \
-                  -o "-k $POSTGRES_DIR/data -h 127.0.0.1 -p 5432" \
-                  -w start
+          #     # Start postgres server temporarily for setup
+          #     ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+          #         -D "$POSTGRES_DIR/data" \
+          #         -o "-k $POSTGRES_DIR/data -h 127.0.0.1 -p 5432" \
+          #         -w start
 
-              # Common psql parameters
-              PSQL_COMMON="-h 127.0.0.1 -p 5432 -U blockscout"
+          #     # Common psql parameters
+          #     PSQL_COMMON="-h 127.0.0.1 -p 5432 -U blockscout"
 
-              # Create databases
-              for DB in blockscout blockscout_account blockscout_api blockscout_mud; do
-                ${lib.getExe' pkgs.postgresql "createdb"} $PSQL_COMMON $DB
+          #     # Create databases
+          #     for DB in blockscout blockscout_account blockscout_api blockscout_mud; do
+          #       ${lib.getExe' pkgs.postgresql "createdb"} $PSQL_COMMON $DB
 
-                # Grant superuser privileges to all databases
-                ${lib.getExe' pkgs.postgresql "psql"} $PSQL_COMMON -d $DB \
-                    -c "ALTER USER blockscout WITH SUPERUSER;"
-              done
+          #       # Grant superuser privileges to all databases
+          #       ${lib.getExe' pkgs.postgresql "psql"} $PSQL_COMMON -d $DB \
+          #           -c "ALTER USER blockscout WITH SUPERUSER;"
+          #     done
 
-              # Stop temporary server
-              ${lib.getExe' pkgs.postgresql "pg_ctl"} \
-                  -D "$POSTGRES_DIR/data" stop
+          #     # Stop temporary server
+          #     ${lib.getExe' pkgs.postgresql "pg_ctl"} \
+          #         -D "$POSTGRES_DIR/data" stop
 
-              # Start postgres with final configuration
-              ${lib.getExe' pkgs.postgresql "postgres"} \
-                  -D "$POSTGRES_DIR/data" \
-                  -k "$POSTGRES_DIR/data" \
-                  -c max_connections=200 \
-                  -c client_connection_check_interval=60000 \
-                  -c listen_addresses='127.0.0.1' \
-                  -c port=5432
-            '';
-            readiness_probe = {
-              exec = {
-                command = ''
-                  ${lib.getExe' pkgs.postgresql "pg_isready"} -U blockscout -d blockscout -h localhost -p 5432;
-                '';
-              };
-              initial_delay_seconds = 5;
-              period_seconds = 10;
-              timeout_seconds = 5;
-              success_threshold = 1;
-              failure_threshold = 5;
-            };
-          };
+          #     # Start postgres with final configuration
+          #     ${lib.getExe' pkgs.postgresql "postgres"} \
+          #         -D "$POSTGRES_DIR/data" \
+          #         -k "$POSTGRES_DIR/data" \
+          #         -c max_connections=200 \
+          #         -c client_connection_check_interval=60000 \
+          #         -c listen_addresses='127.0.0.1' \
+          #         -c port=5432
+          #   '';
+          #   readiness_probe = {
+          #     exec = {
+          #       command = ''
+          #         ${lib.getExe' pkgs.postgresql "pg_isready"} -U blockscout -d blockscout -h localhost -p 5432;
+          #       '';
+          #     };
+          #     initial_delay_seconds = 5;
+          #     period_seconds = 10;
+          #     timeout_seconds = 5;
+          #     success_threshold = 1;
+          #     failure_threshold = 5;
+          #   };
+          # };
 
-          pgweb = {
-            command = ''
-              ${lib.getExe pkgs.pgweb} \
-                --host=localhost \
-                --port=5432 \
-                --user=blockscout \
-                --pass=blockscout \
-                --db=blockscout \
-                --listen=8585 \
-                --bind=0.0.0.0
-            '';
-            depends_on."postgres".condition = "process_healthy";
-            readiness_probe = {
-              http_get = {
-                host = "localhost";
-                port = 8585;
-                path = "/";
-              };
-              initial_delay_seconds = 20;
-              period_seconds = 10;
-              timeout_seconds = 2;
-              success_threshold = 1;
-              failure_threshold = 3;
-            };
-          };
+          # pgweb = {
+          #   command = ''
+          #     ${lib.getExe pkgs.pgweb} \
+          #       --host=localhost \
+          #       --port=5432 \
+          #       --user=blockscout \
+          #       --pass=blockscout \
+          #       --db=blockscout \
+          #       --listen=8585 \
+          #       --bind=0.0.0.0
+          #   '';
+          #   depends_on."postgres".condition = "process_healthy";
+          #   readiness_probe = {
+          #     http_get = {
+          #       host = "localhost";
+          #       port = 8585;
+          #       path = "/";
+          #     };
+          #     initial_delay_seconds = 20;
+          #     period_seconds = 10;
+          #     timeout_seconds = 2;
+          #     success_threshold = 1;
+          #     failure_threshold = 3;
+          #   };
+          # };
         };
       };
     };

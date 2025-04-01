@@ -1,4 +1,8 @@
-{pkgs}:
+{
+  pkgs,
+  SECONDS_PER_SLOT ? 12,
+  SLOTS_PER_EPOCH ? 32,
+}:
 pkgs.writeTextFile {
   name = "chain-config.yaml";
   text = ''
@@ -36,8 +40,8 @@ pkgs.writeTextFile {
     # FULU_FORK_EPOCH: 0
 
     # Time parameters
-    SECONDS_PER_SLOT: 12
-    SLOTS_PER_EPOCH: 32
+    SECONDS_PER_SLOT: ${toString SECONDS_PER_SLOT}
+    SLOTS_PER_EPOCH: ${toString SLOTS_PER_EPOCH}
 
     # Deposit contract
     DEPOSIT_CONTRACT_ADDRESS: 0x4242424242424242424242424242424242424242
