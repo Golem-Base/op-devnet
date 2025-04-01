@@ -8,7 +8,7 @@
     devShells.default = pkgs.mkShellNoCC {
       packages =
         (with pkgs; [
-          foundry
+          foundry-bin
           sops
           ssh-to-age
           go-ethereum
@@ -22,7 +22,8 @@
           self'.packages.kurtosis
           self'.packages.dora
           inputs.withdrawer.packages.${system}.default
-          self'.packages.op-deployer-v0_3_0_rc5
+
+          self'.packages.op-deployer-v0_2_0-rc2
 
           go
           go-tools
@@ -35,7 +36,6 @@
           eth2-testnet-genesis
           kurtosis
           op-batcher-v1_11_4
-          op-deployer-v0_2_0_rc1
           op-geth-v1_101500_1
           op-node-v1_11_2
           op-proposer-v1_10_0

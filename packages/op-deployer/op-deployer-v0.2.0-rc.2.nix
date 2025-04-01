@@ -4,18 +4,18 @@
 }:
 buildGoModule rec {
   pname = "op-deployer";
-  version = "0.3.0-rc.5";
+  version = "0.2.0-rc.2";
 
   src = fetchFromGitHub {
     owner = "ethereum-optimism";
     repo = "optimism";
     rev = "op-deployer/v${version}";
-    hash = "sha256-QDD6o7YSEKG3Wm4oC3SeFnbupWike00BwWhbFZPQg3U=";
+    hash = "sha256-OpJCAkFpZuCysXpzRnWXvq3N0f3oBQrLfCpxx83yuYo=";
   };
 
-  patches = [./op-deployer-v0_3_0_rc5.patch];
+  patches = [./chain_id_2345.patch ./debug.patch];
 
-  vendorHash = "sha256-keiXoCvi2ZOdN3bPkwNo+jVPaWZRt21iODBy0EBIFMo=";
+  vendorHash = "sha256-/jW5EPRGjUi5ZrOBS08bXfP0x1KHFgelY7WseDvGzFM=";
 
   doCheck = false;
 

@@ -23,26 +23,25 @@
     ${solcInstalls}
   '';
 in
-  pkgs.stdenv.mkDerivation rec {
+  pkgs.stdenv.mkDerivation {
     pname = "contracts-bedrock";
-    version = "3.0.0-rc.2";
+    version = "1.7.0-beta.1+l2-contracts";
 
     src = fetchFromGitHub {
       owner = "ethereum-optimism";
       repo = "optimism";
-      rev = "op-contracts/v${version}";
-      hash = "sha256-8s6XHNnEv5hrDjvmVH06aiKxCSeYS2RhDel8z3EcWrs=";
+      rev = "5e14a61547a45eef2ebeba677aee4a049f106ed8";
+      hash = "sha256-CiW2f4lXmACwCg8GM2BG16bZjqBHLNJPYwHxIf5GRyg=";
       fetchSubmodules = true;
     };
 
-    patches = [./001_deployment_game_clock_validations_removal.patch];
+    patches = [./001_v1_7_0-beta_1_l2-contracts__additional_holocene_fork.patch];
 
     nativeBuildInputs = with pkgs; [foundry-bin];
 
     buildPhase = ''
       cp $src/packages/contracts-bedrock/foundry.toml .
       cp -r $src/packages/contracts-bedrock/src .
-      cp -r $src/packages/contracts-bedrock/interfaces .
       cp -r $src/packages/contracts-bedrock/test .
       cp -r $src/packages/contracts-bedrock/scripts .
       cp -r $src/packages/contracts-bedrock/lib .
@@ -52,6 +51,7 @@ in
           solc_0_8_15
           solc_0_8_19
           solc_0_8_25
+          solc_0_8_28
         ]
       )}
 
